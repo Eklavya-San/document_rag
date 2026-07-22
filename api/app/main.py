@@ -2,7 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.config import get_settings
-from app.db.base import Base, async_engine, session_factory
+from app.db.base import Base, async_engine, session_factory, _apply_startup_indexes
 from app.ollama.client import OllamaClient
 from app.qdrant.client import QdrantStore
 from app.routers import health, documents, chat
@@ -12,6 +12,7 @@ from app.routers import health, documents, chat
 async def _lifespan(app: FastAPI):
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_apply_startup_indexes)
 
     qdrant = QdrantStore(app.state.settings)
     try:

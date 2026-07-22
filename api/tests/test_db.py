@@ -39,3 +39,18 @@ async def test_chat_session_has_messages_relationship(session: AsyncSession):
     persisted = result.scalar_one()
     assert persisted.role == "user"
     assert persisted.session_id == cs.id
+
+
+async def test_session_id_index_exists():
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from app.db.base import Base, _apply_startup_indexes
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_apply_startup_indexes)
+    async with engine.connect() as conn:
+        import sqlalchemy
+        result = await conn.execute(sqlalchemy.text("PRAGMA index_list('chat_messages')"))
+        names = [row[1] for row in result]
+    await engine.dispose()
+    assert any("session_id" in n for n in names)

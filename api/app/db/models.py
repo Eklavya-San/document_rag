@@ -29,7 +29,7 @@ class ChatSession(Base):
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
     id: Mapped[int] = mapped_column(primary_key=True)
-    session_id: Mapped[int] = mapped_column(ForeignKey("chat_sessions.id"))
+    session_id: Mapped[int] = mapped_column(ForeignKey("chat_sessions.id"), index=True)
     role: Mapped[str] = mapped_column(String(16))
     content: Mapped[str] = mapped_column(Text)
     sources_json: Mapped[list | None] = mapped_column(JSON, nullable=True)
