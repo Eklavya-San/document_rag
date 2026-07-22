@@ -1,8 +1,10 @@
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.config import get_settings
 from app.db.base import Base, async_engine
 from app.ollama.client import OllamaClient
+from app.qdrant.client import QdrantStore
 from app.routers import health
 
 
@@ -10,6 +12,14 @@ from app.routers import health
 async def _lifespan(app: FastAPI):
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    qdrant = QdrantStore(app.state.settings)
+    try:
+        qdrant.ensure_collection()
+    except Exception as e:
+        logging.getLogger("uvicorn.error").warning("Qdrant bootstrap skipped: %s", e)
+    app.state.qdrant = qdrant
+
     yield
 
 
