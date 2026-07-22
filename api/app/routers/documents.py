@@ -27,11 +27,11 @@ async def upload_document(
     safe_name = os.path.basename(filename)
     if len(safe_name) > 512:
         raise HTTPException(status_code=400, detail="filename too long")
-    doc = await repo.create(safe_name)
-    save_path = os.path.join(settings.data_dir, f"{doc.id}_{safe_name}")
+    import uuid
+    tmp_path = os.path.join(settings.data_dir, f"tmp_{uuid.uuid4().hex}_{safe_name}")
     written = 0
     try:
-        with open(save_path, "wb") as f:
+        with open(tmp_path, "wb") as f:
             while True:
                 chunk = await file.read(1024 * 1024)
                 if not chunk:
@@ -41,16 +41,26 @@ async def upload_document(
                     raise HTTPException(status_code=413, detail="file too large")
                 f.write(chunk)
     except HTTPException:
-        if os.path.exists(save_path):
-            os.remove(save_path)
-        await repo.delete(doc.id)
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
         raise
-    except Exception:
-        if os.path.exists(save_path):
-            os.remove(save_path)
+    except BaseException:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise HTTPException(status_code=500, detail="upload write failed")
+
+    # Row created only after a successful write.
+    doc = await repo.create(safe_name)
+    final_path = os.path.join(settings.data_dir, f"{doc.id}_{safe_name}")
+    try:
+        os.rename(tmp_path, final_path)
+    except OSError:
         await repo.delete(doc.id)
-        raise
-    background.add_task(_run_ingest, doc.id, save_path, safe_name, request.app)
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise HTTPException(status_code=500, detail="could not finalize upload")
+
+    background.add_task(_run_ingest, doc.id, final_path, safe_name, request.app)
     return _doc_dict(await repo.get(doc.id))
 
 

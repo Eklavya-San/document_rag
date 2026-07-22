@@ -79,6 +79,20 @@ def test_upload_rejects_unsupported_type(client):
     assert "Unsupported" in r.json()["detail"]
 
 
+def test_failed_write_leaves_no_row(client, monkeypatch):
+    import builtins
+    original_open = builtins.open
+    def failing_open(file, mode='r', *args, **kwargs):
+        if 'tmp_' in str(file) and 'wb' in mode:
+            raise IOError("disk full")
+        return original_open(file, mode, *args, **kwargs)
+    monkeypatch.setattr(builtins, "open", failing_open)
+    files = {"file": ("m.pdf", b"%PDF-1.4 fake", "application/pdf")}
+    r = client.post("/documents/upload", files=files)
+    assert r.status_code >= 400
+    assert client.get("/documents").json() == []
+
+
 def test_upload_too_large(client, monkeypatch):
     from app.config import get_settings
     get_settings.cache_clear()
