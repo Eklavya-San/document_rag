@@ -106,3 +106,15 @@ def test_upload_too_large(client, monkeypatch):
         files={"file": ("big.pdf", payload, "application/pdf")},
     )
     assert r.status_code == 413
+
+
+def test_delete_succeeds_even_if_file_removal_fails(client, monkeypatch):
+    import app.routers.documents as docs
+    async def fake_ingest(doc_id, file_path, filename, repo, embedder, qdrant, settings):
+        await repo.set_status(doc_id, "done", chunk_count=1, parser_used="pdf")
+    monkeypatch.setattr(docs, "ingest_document", fake_ingest)
+    monkeypatch.setattr(docs.os, "remove", lambda *a, **k: (_ for _ in ()).throw(OSError("locked")))
+    doc_id = client.post("/documents/upload", files={"file": ("m.pdf", b"%PDF-1.4 fake", "application/pdf")}).json()["id"]
+    r = client.delete(f"/documents/{doc_id}")
+    assert r.status_code == 204
+    assert client.get(f"/documents/{doc_id}").status_code == 404

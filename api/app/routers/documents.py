@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, BackgroundTasks
@@ -95,11 +96,14 @@ async def delete_document(doc_id: int, request: Request, session: AsyncSession =
     if doc is None:
         raise HTTPException(status_code=404, detail="document not found")
     await request.app.state.qdrant.delete_by_doc(doc_id)
+    await repo.delete(doc_id)
     settings = request.app.state.settings
     save_path = os.path.join(settings.data_dir, f"{doc_id}_{os.path.basename(doc.filename)}")
     if os.path.exists(save_path):
-        os.remove(save_path)
-    await repo.delete(doc_id)
+        try:
+            os.remove(save_path)
+        except OSError:
+            logging.getLogger("uvicorn.error").warning("could not remove file %s", save_path)
     return None
 
 
