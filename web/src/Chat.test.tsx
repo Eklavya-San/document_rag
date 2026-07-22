@@ -79,4 +79,10 @@ describe("Chat", () => {
     await user.click(screen.getByRole("button", { name: "Send" }));
     expect(firstSignal.aborted).toBe(true);
   });
+
+  it("marks the messages region as a live region", () => {
+    render(<Chat />);
+    const live = document.querySelector("[aria-live='polite']");
+    expect(live).not.toBeNull();
+  });
 });

@@ -112,7 +112,7 @@ export function Chat() {
   return (
     <div className="chat-container">
       <div className="chat">
-        <div className="messages">
+        <div className="messages" aria-live="polite" aria-label="Chat messages">
           {messages.length === 0 ? (
             <div className="welcome-hero">
               <h2>Welcome to RAG Studio</h2>
