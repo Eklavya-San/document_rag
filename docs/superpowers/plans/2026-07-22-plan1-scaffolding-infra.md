@@ -797,16 +797,22 @@ git commit -m "feat: Ollama httpx client with ping, embed, chat_stream"
 **Interfaces:**
 - Produces: a runnable stack via `docker compose up` exposing the API on `API_PORT`.
 
-- [ ] **Step 1: Add Qdrant bootstrap to app lifespan**
+- [ ] **Step 1: Add Qdrant bootstrap to app lifespan (best-effort)**
 
-In `api/app/main.py`, inside `_lifespan`, after the `create_all` block and before `yield`:
+In `api/app/main.py`, inside `_lifespan`, after the `create_all` block and before `yield`. The bootstrap is wrapped in `try/except` so a temporarily-unreachable Qdrant does not crash startup (unit tests have no Qdrant running; production logs the warning and continues, and the `/health` route can still report other dependencies):
 ```python
+import logging
 from app.qdrant.client import QdrantStore
 
     qdrant = QdrantStore(app.state.settings)
-    qdrant.ensure_collection()
+    try:
+        qdrant.ensure_collection()
+    except Exception as e:
+        logging.getLogger("uvicorn.error").warning("Qdrant bootstrap skipped: %s", e)
     app.state.qdrant = qdrant
 ```
+
+Because this is best-effort, the existing `test_health` tests still pass: the lifespan runs, `ensure_collection` raises (no Qdrant at `http://qdrant:6333` in the test env), the warning is logged, and `/health` still returns 200 with `dependencies.ollama == "unreachable"`.
 
 - [ ] **Step 2: Create `api/Dockerfile`**
 
