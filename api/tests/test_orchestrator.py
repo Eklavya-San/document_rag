@@ -48,6 +48,8 @@ async def test_ingest_happy_path_marks_done_and_upserts():
         assert points[0]["payload"]["doc_id"] == doc.id
         assert points[0]["payload"]["page"] == 1
         assert "serviced" in points[0]["payload"]["text"]
+        assert points[0]["payload"]["filename"] == "m.pdf"
+        assert points[0]["payload"]["language"] == "auto"
         await session.close()
         await engine.dispose()
 

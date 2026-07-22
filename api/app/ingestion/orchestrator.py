@@ -34,7 +34,7 @@ async def ingest_document(
         for i in range(0, len(chunks), EMBED_BATCH):
             batch = chunks[i:i + EMBED_BATCH]
             vectors = await embedder.embed([c.text for c in batch])
-            for chunk, vector in zip(batch, vectors):
+            for chunk, vector in zip(batch, vectors, strict=True):
                 points.append({
                     "id": str(uuid.uuid4()),
                     "vector": vector,
