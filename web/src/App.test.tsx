@@ -11,7 +11,7 @@ describe("App", () => {
   it("switches to the Documents tab", async () => {
     const { user } = setup();
     await user.click(screen.getByText("Documents"));
-    expect(screen.getByTestId("documents-placeholder")).toBeInTheDocument();
+    expect(screen.getByLabelText("Upload manual")).toBeInTheDocument();
   });
 });
 

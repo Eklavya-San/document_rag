@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Chat } from "./Chat";
+import { Documents } from "./Documents";
 
 export function App() {
   const [tab, setTab] = useState<"chat" | "documents">("chat");
@@ -10,7 +11,7 @@ export function App() {
         <button className={tab === "documents" ? "active" : ""} onClick={() => setTab("documents")}>Documents</button>
       </header>
       <main>
-        {tab === "chat" ? <Chat /> : <div data-testid="documents-placeholder">Documents</div>}
+        {tab === "chat" ? <Chat /> : <Documents />}
       </main>
     </div>
   );
