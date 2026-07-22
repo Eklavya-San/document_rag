@@ -1,0 +1,53 @@
+{
+  "name": "RAG Studio DevContainer",
+  "dockerComposeFile": [
+    "../docker-compose.yml",
+    "docker-compose.devcontainer.yml"
+  ],
+  "service": "devcontainer",
+  "workspaceFolder": "/workspace",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.testing.pytestEnabled": true,
+        "editor.formatOnSave": true,
+        "files.trimTrailingWhitespace": true
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "eamodio.gitlens",
+        "dsznajder.es7-react-js-snippets"
+      ]
+    }
+  },
+  "forwardPorts": [8080, 8000, 6333, 5432],
+  "portsAttributes": {
+    "8080": {
+      "label": "Web Frontend (Nginx)",
+      "onAutoForward": "notify"
+    },
+    "8000": {
+      "label": "FastAPI Backend API",
+      "onAutoForward": "notify"
+    },
+    "6333": {
+      "label": "Qdrant Vector Store",
+      "onAutoForward": "ignore"
+    },
+    "5432": {
+      "label": "PostgreSQL Database",
+      "onAutoForward": "ignore"
+    }
+  },
+  "postCreateCommand": "pip install -r api/requirements.txt && npm --prefix web install",
+  "remoteUser": "vscode"
+}

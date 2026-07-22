@@ -1,0 +1,7 @@
+services:
+  devcontainer:
+    image: mcr.microsoft.com/devcontainers/python:3.11-bullseye
+    volumes:
+      - ..:/workspace:cached
+    command: /bin/sh -c "while sleep 1000; do :; done"
+    network_mode: service:api
