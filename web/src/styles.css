@@ -564,6 +564,7 @@ html[data-theme="dark"] .msg.assistant code {
 .drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); border: none; padding: 0; z-index: 40; }
 
 .citation-drawer {
+  position: relative;
   width: 360px;
   min-width: 360px;
   height: 100%;
@@ -571,7 +572,7 @@ html[data-theme="dark"] .msg.assistant code {
   border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  z-index: 15;
+  z-index: 50;
   box-shadow: -4px 0 12px rgba(0, 0, 0, 0.05);
   animation: slideIn 200ms ease-out;
 }
