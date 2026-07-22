@@ -1,18 +1,24 @@
 import { useState } from "react";
+import { ThemeProvider } from "./components/ThemeContext";
+import { Header } from "./components/Header";
+import { Sidebar } from "./components/Sidebar";
 import { Chat } from "./Chat";
 import { Documents } from "./Documents";
 
 export function App() {
   const [tab, setTab] = useState<"chat" | "documents">("chat");
+
   return (
-    <div className="app">
-      <header className="tabs">
-        <button className={tab === "chat" ? "active" : ""} onClick={() => setTab("chat")}>Chat</button>
-        <button className={tab === "documents" ? "active" : ""} onClick={() => setTab("documents")}>Documents</button>
-      </header>
-      <main>
-        {tab === "chat" ? <Chat /> : <Documents />}
-      </main>
-    </div>
+    <ThemeProvider>
+      <div className="app-layout">
+        <Header activeTab={tab} />
+        <div className="app-body">
+          <Sidebar activeTab={tab} setTab={setTab} />
+          <main className="main-content">
+            {tab === "chat" ? <Chat /> : <Documents />}
+          </main>
+        </div>
+      </div>
+    </ThemeProvider>
   );
 }
