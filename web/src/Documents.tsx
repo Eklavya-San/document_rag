@@ -66,7 +66,7 @@ export function Documents() {
     if (doc.status === "done") {
       return <span className="status-pill status-indexed">Indexed</span>;
     }
-    if (doc.status === "failed" || doc.status === "error") {
+    if (doc.status === "failed") {
       return (
         <span className="status-pill status-error" title={doc.error || "Ingestion error"}>
           Error
