@@ -14,9 +14,9 @@ class Base(DeclarativeBase):
 
 _settings = get_settings()
 async_engine = create_async_engine(_settings.postgres_dsn, future=True)
-_session_factory = async_sessionmaker(async_engine, expire_on_commit=False)
+session_factory = async_sessionmaker(async_engine, expire_on_commit=False)
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:
-    async with _session_factory() as session:
+    async with session_factory() as session:
         yield session

@@ -2,10 +2,10 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.config import get_settings
-from app.db.base import Base, async_engine
+from app.db.base import Base, async_engine, session_factory
 from app.ollama.client import OllamaClient
 from app.qdrant.client import QdrantStore
-from app.routers import health
+from app.routers import health, documents
 
 
 @asynccontextmanager
@@ -31,8 +31,10 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Manual RAG Chatbot", lifespan=_lifespan)
     app.state.settings = settings
     app.state.ollama = OllamaClient(settings)
+    app.state.session_factory = session_factory
 
     app.include_router(health.router)
+    app.include_router(documents.router)
     return app
 
 
