@@ -610,7 +610,7 @@ def test_ensure_collection_creates_with_configured_dim():
     mock_client.collection_exists.assert_called_once_with("manuals")
     mock_client.create_collection.assert_called_once()
     _, kwargs = mock_client.create_collection.call_args
-    assert kwargs["vectors_config"]["size"] == 768
+    assert kwargs["vectors_config"].size == 768  # VectorParams is a pydantic model
 
 
 def test_ensure_collection_skips_when_exists():
