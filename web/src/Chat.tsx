@@ -150,7 +150,7 @@ export function Chat() {
                         onClick={() =>
                           setSelectedCitation({
                             filename: s.filename,
-                            chunkId: (s as any).chunk_id || (s as any).chunkId || `${s.filename}-p${s.page}`,
+                            chunkId: s.chunk_id || `${s.filename}-p${s.page}`,
                             text: s.text,
                             score: s.score,
                           })

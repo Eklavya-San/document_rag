@@ -12,6 +12,7 @@ export interface Source {
   page: number;
   text: string;
   score: number;
+  chunk_id: string;
 }
 
 export interface StoredMessage {

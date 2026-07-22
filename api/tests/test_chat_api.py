@@ -21,12 +21,12 @@ class FakeOllama:
 
 class FakeQdrant:
     async def search(self, vector, top_k):
-        return [{"text": "calibrate the sensor", "doc_id": 1, "filename": "m.pdf", "page": 3, "score": 0.9}]
+        return [{"id": "c1", "text": "calibrate the sensor", "doc_id": 1, "filename": "m.pdf", "page": 3, "score": 0.9}]
 
 
 class NoContextQdrant:
     async def search(self, vector, top_k):
-        return [{"text": "x", "doc_id": 1, "filename": "m.pdf", "page": 1, "score": 0.1}]
+        return [{"id": "c0", "text": "x", "doc_id": 1, "filename": "m.pdf", "page": 1, "score": 0.1}]
 
 
 class DeadOllama:

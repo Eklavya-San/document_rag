@@ -57,6 +57,7 @@ async def test_delete_by_doc_uses_filter():
 async def test_search_maps_hits_to_dicts():
     store = _store()
     fake_hit = MagicMock()
+    fake_hit.id = "p1"
     fake_hit.score = 0.91
     fake_hit.payload = {"text": "calibrate", "doc_id": 1, "filename": "m.pdf", "page": 3}
     with patch.object(store, "_client") as mock_client:
@@ -66,7 +67,22 @@ async def test_search_maps_hits_to_dicts():
     _, kwargs = mock_client.search.call_args
     assert kwargs["collection_name"] == "manuals"
     assert kwargs["limit"] == 5
-    assert results == [{"text": "calibrate", "doc_id": 1, "filename": "m.pdf", "page": 3, "score": 0.91}]
+    assert results == [{"id": "p1", "text": "calibrate", "doc_id": 1, "filename": "m.pdf", "page": 3, "score": 0.91}]
+
+
+async def test_search_returns_point_id():
+    store = _store()
+    class Scored:
+        id = "point-42"
+        score = 0.9
+        payload = {"text": "t", "doc_id": 1, "filename": "m.pdf", "page": 2}
+    class FakeClient:
+        async def search(self, **kwargs): return [Scored()]
+        async def close(self): pass
+    store._client = FakeClient()
+    hits = await store.search([0.1], 5)
+    assert hits[0]["id"] == "point-42"
+    assert hits[0]["text"] == "t"
 
 
 async def test_close_closes_underlying_client():

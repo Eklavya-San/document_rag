@@ -120,4 +120,4 @@ def _sse(obj) -> str:
 
 
 def _source_dict(s) -> dict:
-    return {"filename": s.filename, "page": s.page, "text": s.text, "score": s.score}
+    return {"filename": s.filename, "page": s.page, "text": s.text, "score": s.score, "chunk_id": s.chunk_id}

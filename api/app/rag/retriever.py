@@ -9,6 +9,7 @@ class Source:
     filename: str
     page: int
     score: float
+    chunk_id: str
 
 
 class Retriever:
@@ -33,6 +34,7 @@ class Retriever:
                 filename=h["filename"],
                 page=h["page"],
                 score=h["score"],
+                chunk_id=str(h.get("id", "")),
             )
             for h in hits_sorted
         ]

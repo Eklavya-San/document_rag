@@ -45,6 +45,7 @@ class QdrantStore:
         )
         return [
             {
+                "id": r.id,
                 "text": r.payload.get("text", ""),
                 "doc_id": r.payload.get("doc_id"),
                 "filename": r.payload.get("filename", ""),
