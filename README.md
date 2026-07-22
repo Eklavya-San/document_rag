@@ -5,6 +5,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111.0-009688.svg?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18.3.1-61DAFB.svg?style=flat&logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5.3-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org/)
+[![CI Workflow](https://github.com/Eklavya-San/document_rag/actions/workflows/ci.yml/badge.svg)](https://github.com/Eklavya-San/document_rag/actions/workflows/ci.yml)
 [![Qdrant](https://img.shields.io/badge/Qdrant-VectorDB-red.svg?style=flat)](https://qdrant.tech/)
 [![Ollama](https://img.shields.io/badge/Ollama-LLM-black.svg?style=flat)](https://ollama.ai/)
 [![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED.svg?style=flat&logo=docker)](https://www.docker.com/)
