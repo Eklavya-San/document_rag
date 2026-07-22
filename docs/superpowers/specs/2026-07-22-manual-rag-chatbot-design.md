@@ -85,12 +85,16 @@ Modules:
 - **RAG router:** query embedding → Qdrant top-k search → optional rerank → prompt assembly (system + history + retrieved chunks) → Ollama stream. Isolated so retrieval strategy can be tuned independently of the API layer.
 - **Ingestion:** background task that loads a file → parses → chunks → embeds in batches → upserts to Qdrant → updates Postgres. Async so uploads don't block chat.
 
-### 4.3 Models (external Ollama)
+### 4.3 Models (external Ollama) — configurable via `.env`
 
-- **LLM:** `qwen2.5:32b` (multilingual, fits ~32GB VRAM quantized). Alternative: Command-R 35B.
-- **Embeddings:** `bge-m3` (multilingual, ~1024-dim dense vectors, small footprint).
+Model names and the Ollama endpoint are **not hardcoded**; they are read from a `.env` file so the client can swap models without touching code. Defaults are chosen for a ~32GB VRAM multilingual setup.
 
-These must be pulled on the external Ollama host (`ollama pull qwen2.5:32b bge-m3`); documented in the README.
+- **LLM:** default `qwen2.5:32b` (multilingual, fits ~32GB VRAM quantized). Alternative: Command-R 35B.
+- **Embeddings:** default `bge-m3` (multilingual, ~1024-dim dense vectors, small footprint).
+
+Whatever models are configured must be pulled on the external Ollama host (e.g. `ollama pull qwen2.5:32b bge-m3`); documented in the README.
+
+The embedding model's vector dimension is also env-driven so swapping embeddings (e.g. to a different dim) stays consistent between ingestion and query — the Qdrant collection is created with the configured dimension at startup.
 
 ### 4.4 Data stores
 
@@ -113,6 +117,27 @@ Chunk text is stored in Qdrant payloads; Postgres holds only structural metadata
 - Scanned PDF → automatic OCR fallback (Tesseract or EasyOCR) triggered when a PDF page yields no extractable text; recorded as `parser_used=ocr`.
 
 Tables preserved as structured text where possible.
+
+### 4.6 Configuration (`.env`)
+
+All environment-dependent values live in a `.env` file (loaded by docker-compose and the API). A `.env.example` is committed; the real `.env` is gitignored. Key variables:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | External Ollama API endpoint |
+| `OLLAMA_LLM_MODEL` | `qwen2.5:32b` | Generation model |
+| `OLLAMA_EMBED_MODEL` | `bge-m3` | Embedding model |
+| `EMBED_DIM` | `1024` | Embedding vector dim (must match the model) |
+| `OLLAMA_NUM_PARALLEL` | `2` | Hint for concurrent Ollama generations |
+| `CHUNK_SIZE_TOKENS` | `512` | Ingestion chunk size |
+| `CHUNK_OVERLAP_TOKENS` | `50` | Ingestion chunk overlap |
+| `RETRIEVAL_TOP_K` | `5` | Qdrant candidates retrieved |
+| `RERANK_ENABLED` | `false` | Toggle optional reranking (v1) |
+| `CHAT_HISTORY_TURNS` | `6` | Past messages folded into the prompt |
+| `NO_CONTEXT_THRESHOLD` | `0.35` | Cosine score below which we answer "not found" |
+| `QDRANT_URL` | `http://qdrant:6333` | Qdrant endpoint |
+| `POSTGRES_DSN` | `postgresql://rag:rag@postgres:5432/rag` | Postgres connection |
+| `DATA_DIR` | `/data/manuals` | Uploaded manual storage |
 
 ## 5. Data Flow
 
