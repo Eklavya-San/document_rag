@@ -5,7 +5,7 @@ from app.config import get_settings
 from app.db.base import Base, async_engine, session_factory
 from app.ollama.client import OllamaClient
 from app.qdrant.client import QdrantStore
-from app.routers import health, documents
+from app.routers import health, documents, chat
 
 
 @asynccontextmanager
@@ -36,6 +36,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(documents.router)
+    app.include_router(chat.router)
     return app
 
 
