@@ -5,7 +5,7 @@ import { App } from "./App";
 describe("App", () => {
   it("renders the Chat tab by default", () => {
     render(<App />);
-    expect(screen.getByTestId("chat-placeholder")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Ask about the manuals…")).toBeInTheDocument();
   });
 
   it("switches to the Documents tab", async () => {
