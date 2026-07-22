@@ -23,6 +23,7 @@ async def _lifespan(app: FastAPI):
     yield
 
     await async_engine.dispose()
+    await app.state.ollama.close()
 
 
 def create_app() -> FastAPI:
