@@ -91,3 +91,16 @@ async def test_parse_runs_off_event_loop_thread(monkeypatch):
     await ingest_document(doc.id, "/dev/null", "m.pdf", repo, embedder, qdrant, Settings())
     assert seen["thread"] != main_thread, "parse_file must run in a worker thread, not the event loop thread"
     await session.close(); await engine.dispose()
+
+
+async def test_partial_failure_cleans_qdrant_and_marks_failed():
+    repo, doc, engine, session = await _repo_with_one_doc("m.pdf")
+    embedder = AsyncMock(); embedder.embed = AsyncMock(return_value=[[0.1, 0.2]])
+    qdrant = AsyncMock()
+    qdrant.upsert = AsyncMock(side_effect=RuntimeError("qdrant full"))
+    qdrant.delete_by_doc = AsyncMock()
+    await ingest_document(doc.id, "/dev/null", "m.pdf", repo, embedder, qdrant, Settings())
+    fetched = await repo.get(doc.id)
+    assert fetched.status == "failed"
+    qdrant.delete_by_doc.assert_awaited_with(doc.id)
+    await session.close(); await engine.dispose()

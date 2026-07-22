@@ -50,6 +50,10 @@ async def ingest_document(
         await qdrant.upsert(points=points)
         await repo.set_status(doc_id, "done", chunk_count=len(chunks), parser_used=parser_used)
     except Exception as e:
+        try:
+            await qdrant.delete_by_doc(doc_id)
+        except Exception:
+            pass  # best-effort cleanup; do not mask the original failure
         await repo.set_status(doc_id, "failed", error=str(e))
 
 
