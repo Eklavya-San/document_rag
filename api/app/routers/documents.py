@@ -75,9 +75,9 @@ async def _run_ingest(doc_id: int, file_path: str, filename: str, app):
 
 
 @router.get("")
-async def list_documents(session: AsyncSession = Depends(get_session)):
+async def list_documents(limit: int = 50, offset: int = 0, session: AsyncSession = Depends(get_session)):
     repo = DocumentRepository(session)
-    return [_doc_dict(d) for d in await repo.list_all()]
+    return [_doc_dict(d) for d in await repo.list_all(limit=limit, offset=offset)]
 
 
 @router.get("/{doc_id}")

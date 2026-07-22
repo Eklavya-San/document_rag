@@ -204,3 +204,16 @@ def test_partial_answer_persisted_on_stream_crash(app_with_fakes):
     roles = [m["role"] for m in hist]
     assert roles == ["user", "assistant"]
     assert hist[1]["content"] == "Hel"
+
+
+def test_session_messages_pagination(app_with_fakes):
+    app, factory = app_with_fakes
+    app.state.ollama = FakeOllama()
+    app.state.qdrant = FakeQdrant()
+    client = _client(app)
+    r = client.post("/chat", json={"question": "q1"})
+    sid = _parse_sse(r.text)[0]["session_id"]
+    for q in ("q2", "q3"):
+        client.post("/chat", json={"question": q, "session_id": sid})
+    msgs = client.get(f"/chat/sessions/{sid}/messages?limit=2&offset=2").json()
+    assert len(msgs) == 2  # 4 messages total, skip first 2

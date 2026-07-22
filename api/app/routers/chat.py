@@ -98,12 +98,17 @@ async def chat(req: ChatRequest, request: Request):
 
 
 @router.get("/sessions/{session_id}/messages")
-async def list_session_messages(session_id: int, session: AsyncSession = Depends(get_session)):
+async def list_session_messages(
+    session_id: int,
+    limit: int = 1000,
+    offset: int = 0,
+    session: AsyncSession = Depends(get_session),
+):
     repo = ChatRepository(session)
     sess = await repo.get_session(session_id)
     if sess is None:
         raise HTTPException(status_code=404, detail="session not found")
-    msgs = await repo.list_messages(session_id, limit=1000)
+    msgs = await repo.list_messages(session_id, limit=limit, offset=offset)
     return [
         {"role": m.role, "content": m.content, "sources": m.sources_json or []}
         for m in msgs

@@ -118,3 +118,16 @@ def test_delete_succeeds_even_if_file_removal_fails(client, monkeypatch):
     r = client.delete(f"/documents/{doc_id}")
     assert r.status_code == 204
     assert client.get(f"/documents/{doc_id}").status_code == 404
+
+
+def test_documents_pagination(client, monkeypatch):
+    import app.routers.documents as docs
+    async def fake_ingest(doc_id, file_path, filename, repo, embedder, qdrant, settings):
+        await repo.set_status(doc_id, "done", chunk_count=1, parser_used="pdf")
+    monkeypatch.setattr(docs, "ingest_document", fake_ingest)
+    for i in range(3):
+        client.post("/documents/upload", files={"file": (f"m{i}.pdf", b"%PDF-1.4 fake", "application/pdf")})
+    page1 = client.get("/documents?limit=2&offset=0").json()
+    page2 = client.get("/documents?limit=2&offset=2").json()
+    assert len(page1) == 2 and len(page2) == 1
+    assert page1[0]["id"] != page2[0]["id"]

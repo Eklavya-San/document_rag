@@ -18,8 +18,10 @@ class DocumentRepository:
         result = await self.session.execute(select(Document).where(Document.id == doc_id))
         return result.scalar_one_or_none()
 
-    async def list_all(self) -> list[Document]:
-        result = await self.session.execute(select(Document).order_by(Document.id.desc()))
+    async def list_all(self, limit: int = 50, offset: int = 0) -> list[Document]:
+        result = await self.session.execute(
+            select(Document).order_by(Document.id.desc()).limit(limit).offset(offset)
+        )
         return list(result.scalars().all())
 
     async def set_status(self, doc_id: int, status: str, **fields) -> None:
@@ -58,13 +60,14 @@ class ChatRepository:
         await self.session.refresh(msg)
         return msg
 
-    async def list_messages(self, session_id: int, limit: int) -> list[ChatMessage]:
-        # last `limit` messages, returned oldest-first
+    async def list_messages(self, session_id: int, limit: int, offset: int = 0) -> list[ChatMessage]:
+        # last `limit` messages (after skipping `offset`), returned oldest-first
         stmt = (
             select(ChatMessage)
             .where(ChatMessage.session_id == session_id)
             .order_by(ChatMessage.id.desc())
             .limit(limit)
+            .offset(offset)
         )
         result = await self.session.execute(stmt)
         return list(reversed(result.scalars().all()))
