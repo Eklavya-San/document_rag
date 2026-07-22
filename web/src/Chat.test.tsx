@@ -16,6 +16,23 @@ vi.mock("./sse", () => ({
 import { streamChat } from "./sse";
 
 describe("Chat", () => {
+  it("displays hero welcome state with prompt suggestion chips when empty", () => {
+    render(<Chat />);
+    expect(screen.getByText("Welcome to RAG Studio")).toBeInTheDocument();
+    expect(screen.getByText("What are the key findings in the uploaded documents?")).toBeInTheDocument();
+    expect(screen.getByText("Summarize technical architecture and chunking logic")).toBeInTheDocument();
+    expect(screen.getByText("Search vector database for configuration settings")).toBeInTheDocument();
+  });
+
+  it("submits query when prompt suggestion chip is clicked", async () => {
+    const user = userEvent.setup();
+    render(<Chat />);
+    const chip = screen.getByText("What are the key findings in the uploaded documents?");
+    await user.click(chip);
+
+    expect(await screen.findByText("Hello")).toBeInTheDocument();
+  });
+
   it("streams an answer and shows source chips", async () => {
     const user = userEvent.setup();
     render(<Chat />);
