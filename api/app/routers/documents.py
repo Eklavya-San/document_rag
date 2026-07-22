@@ -25,11 +25,31 @@ async def upload_document(
     if ext not in {".pdf", ".docx", ".html", ".htm"}:
         raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext or '(none)'}")
     safe_name = os.path.basename(filename)
+    if len(safe_name) > 512:
+        raise HTTPException(status_code=400, detail="filename too long")
     doc = await repo.create(safe_name)
     save_path = os.path.join(settings.data_dir, f"{doc.id}_{safe_name}")
-    with open(save_path, "wb") as f:
-        f.write(await file.read())
-    # The background task opens its OWN session (the request session closes with the request).
+    written = 0
+    try:
+        with open(save_path, "wb") as f:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                written += len(chunk)
+                if written > settings.max_upload_bytes:
+                    raise HTTPException(status_code=413, detail="file too large")
+                f.write(chunk)
+    except HTTPException:
+        if os.path.exists(save_path):
+            os.remove(save_path)
+        await repo.delete(doc.id)
+        raise
+    except Exception:
+        if os.path.exists(save_path):
+            os.remove(save_path)
+        await repo.delete(doc.id)
+        raise
     background.add_task(_run_ingest, doc.id, save_path, safe_name, request.app)
     return _doc_dict(await repo.get(doc.id))
 

@@ -77,3 +77,18 @@ def test_upload_rejects_unsupported_type(client):
     r = client.post("/documents/upload", files=files)
     assert r.status_code == 400
     assert "Unsupported" in r.json()["detail"]
+
+
+def test_upload_too_large(client, monkeypatch):
+    from app.config import get_settings
+    get_settings.cache_clear()
+    monkeypatch.setenv("MAX_UPLOAD_BYTES", "1024")
+    get_settings.cache_clear()
+    # Force the app to re-read settings from the updated env
+    client.app.state.settings = get_settings()
+    payload = b"x" * 2048
+    r = client.post(
+        "/documents/upload",
+        files={"file": ("big.pdf", payload, "application/pdf")},
+    )
+    assert r.status_code == 413

@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # Auth (set in prod; empty/unset disables auth for local dev)
     api_key: str | None = None
 
+    # Upload ceiling enforced server-side (bytes)
+    max_upload_bytes: int = 200 * 1024 * 1024
+
     # App
     api_host: str = "0.0.0.0"
     api_port: int = 8000
