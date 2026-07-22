@@ -1,6 +1,6 @@
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.models import Document
+from app.db.models import Document, ChatSession, ChatMessage
 
 
 class DocumentRepository:
@@ -35,9 +35,6 @@ class DocumentRepository:
         await self.session.execute(delete(Document).where(Document.id == doc_id))
         await self.session.commit()
 
-
-from sqlalchemy import select
-from app.db.models import ChatSession, ChatMessage
 
 
 class ChatRepository:

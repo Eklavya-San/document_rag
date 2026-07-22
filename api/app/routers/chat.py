@@ -1,7 +1,8 @@
 import json
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.base import get_session
 from app.db.repositories import ChatRepository
@@ -12,7 +13,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 class ChatRequest(BaseModel):
-    question: str
+    question: str = Field(min_length=1)
     session_id: int | None = None
 
 
@@ -28,7 +29,7 @@ async def chat(req: ChatRequest, request: Request, session: AsyncSession = Depen
     else:
         sess = await repo.create_session(title=req.question[:80])
     await repo.add_message(sess.id, "user", req.question)
-    history = await repo.list_messages(sess.id, settings.chat_history_turns)
+    history = await repo.list_messages(sess.id, settings.chat_history_turns + 1)
     # history is oldest-first and ends with the user message just added; drop it so the
     # current question (passed separately to build_messages) is not duplicated.
     prior_history = history[:-1]
@@ -40,6 +41,7 @@ async def chat(req: ChatRequest, request: Request, session: AsyncSession = Depen
     try:
         sources = await retriever.retrieve(req.question)
     except Exception:
+        logging.getLogger("uvicorn.error").exception("chat retrieval failed")
         raise HTTPException(status_code=503, detail="AI service unavailable")
 
     session_id = sess.id
@@ -50,8 +52,11 @@ async def chat(req: ChatRequest, request: Request, session: AsyncSession = Depen
             yield _sse({"type": "session", "session_id": session_id})
             text = "I couldn't find this in the manuals."
             yield _sse({"type": "token", "content": text})
-            async with request.app.state.session_factory() as s:
-                await ChatRepository(s).add_message(session_id, "assistant", text, sources_json=[])
+            try:
+                async with request.app.state.session_factory() as s:
+                    await ChatRepository(s).add_message(session_id, "assistant", text, sources_json=[])
+            except Exception:
+                logging.getLogger("uvicorn.error").exception("failed to persist assistant message")
             yield _sse({"type": "sources", "sources": []})
             yield _sse({"type": "done"})
         return StreamingResponse(no_context(), media_type="text/event-stream")
@@ -65,8 +70,11 @@ async def chat(req: ChatRequest, request: Request, session: AsyncSession = Depen
             collected.append(piece)
             yield _sse({"type": "token", "content": piece})
         answer = "".join(collected)
-        async with request.app.state.session_factory() as s:
-            await ChatRepository(s).add_message(session_id, "assistant", answer, sources_json=source_dicts)
+        try:
+            async with request.app.state.session_factory() as s:
+                await ChatRepository(s).add_message(session_id, "assistant", answer, sources_json=source_dicts)
+        except Exception:
+            logging.getLogger("uvicorn.error").exception("failed to persist assistant message")
         yield _sse({"type": "sources", "sources": source_dicts})
         yield _sse({"type": "done"})
 

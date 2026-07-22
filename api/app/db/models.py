@@ -32,6 +32,6 @@ class ChatMessage(Base):
     session_id: Mapped[int] = mapped_column(ForeignKey("chat_sessions.id"))
     role: Mapped[str] = mapped_column(String(16))
     content: Mapped[str] = mapped_column(Text)
-    sources_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    sources_json: Mapped[list | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     session: Mapped["ChatSession"] = relationship(back_populates="messages")

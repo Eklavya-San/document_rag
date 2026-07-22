@@ -1,5 +1,4 @@
 import json
-from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -110,7 +109,7 @@ def test_chat_no_context_replies_not_found(app_with_fakes):
     assert r.status_code == 200
     events = _parse_sse(r.text)
     tokens = "".join(e["content"] for e in events if e["type"] == "token")
-    assert "couldn't find" in tokens
+    assert tokens == "I couldn't find this in the manuals."
     assert [e for e in events if e["type"] == "sources"][0]["sources"] == []
 
 
@@ -123,3 +122,21 @@ def test_chat_ollama_unreachable_returns_503(app_with_fakes):
     r = client.post("/chat", json={"question": "how to calibrate?"})
     assert r.status_code == 503
     assert "unavailable" in r.json()["detail"].lower()
+
+
+def test_chat_returns_404_for_missing_session(app_with_fakes):
+    app, factory = app_with_fakes
+    app.state.ollama = FakeOllama()
+    app.state.qdrant = FakeQdrant()
+    client = _client(app)
+    r = client.post("/chat", json={"question": "x", "session_id": 999999})
+    assert r.status_code == 404
+
+
+def test_session_messages_404_for_missing_session(app_with_fakes):
+    app, factory = app_with_fakes
+    app.state.ollama = FakeOllama()
+    app.state.qdrant = FakeQdrant()
+    client = _client(app)
+    r = client.get("/chat/sessions/999999/messages")
+    assert r.status_code == 404

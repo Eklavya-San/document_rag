@@ -37,7 +37,7 @@ class OllamaClient:
             f"{self._base}/api/chat",
             json={"model": model or self.settings.ollama_llm_model,
                   "messages": messages, "stream": True},
-            timeout=httpx.Timeout(None, read=120.0),
+            timeout=httpx.Timeout(10.0, read=120.0),
         ) as r:
             r.raise_for_status()
             async for line in r.aiter_lines():
