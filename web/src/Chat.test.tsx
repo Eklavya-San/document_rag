@@ -4,12 +4,15 @@ import userEvent from "@testing-library/user-event";
 import { Chat } from "./Chat";
 
 vi.mock("./sse", () => ({
-  streamChat: vi.fn(async (_q: string, _id: number | null, onEvent: (e: any) => void) => {
+  streamChat: vi.fn(async (_q: string, _id: number | null, onEvent: (e: any) => void, _onErr: any, signal?: AbortSignal) => {
     onEvent({ type: "session", session_id: 7 });
     onEvent({ type: "token", content: "Hel" });
     onEvent({ type: "token", content: "lo" });
-    onEvent({ type: "sources", sources: [{ filename: "m.pdf", page: 3, text: "calibrate the sensor", score: 0.9 }] });
+    onEvent({ type: "sources", sources: [{ filename: "m.pdf", page: 3, text: "calibrate the sensor", score: 0.9, chunk_id: "c1" }] });
     onEvent({ type: "done" });
+    // Yield so the Chat component has time to set abortRef.current before we resolve
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    return signal;
   }),
 }));
 
@@ -62,5 +65,18 @@ describe("Chat", () => {
     await user.type(screen.getByPlaceholderText("Ask about the manuals…"), "hi");
     await user.click(screen.getByRole("button", { name: "Send" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
+  });
+
+  it("passes an AbortSignal to streamChat and aborts the previous stream on a new send", async () => {
+    const user = userEvent.setup();
+    render(<Chat />);
+    await user.type(screen.getByPlaceholderText("Ask about the manuals…"), "q1");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    const firstSignal = (vi.mocked(streamChat).mock.calls[0][4] as AbortSignal);
+    expect(firstSignal).toBeInstanceOf(AbortSignal);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
+    await user.type(screen.getByPlaceholderText("Ask about the manuals…"), "q2");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    expect(firstSignal.aborted).toBe(true);
   });
 });

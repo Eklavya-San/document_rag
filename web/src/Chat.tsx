@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { streamChat } from "./sse";
 import { Source } from "./types";
@@ -23,6 +23,9 @@ export function Chat() {
   const [busy, setBusy] = useState(false);
   const [selectedCitation, setSelectedCitation] = useState<CitationData | null>(null);
   const sessionRef = useRef<number | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   async function send(queryOverride?: string) {
     const question = (queryOverride ?? input).trim();
@@ -35,6 +38,9 @@ export function Chat() {
       { role: "assistant", content: "", sources: [], streaming: true },
     ]);
 
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
     try {
       await streamChat(
         question,
@@ -82,7 +88,8 @@ export function Chat() {
             };
             return copy;
           });
-        }
+        },
+        ac.signal,
       );
     } finally {
       setBusy(false);

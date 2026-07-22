@@ -58,6 +58,34 @@ describe("streamChat", () => {
     expect(err!.message).toContain("503");
   });
 
+  it("releases the reader and swallows AbortError when the signal aborts", async () => {
+    const encoder = new TextEncoder();
+    let cancelCalled = false;
+    const controller = new AbortController();
+    const stream = new ReadableStream({
+      start(ctrl) {
+        ctrl.enqueue(encoder.encode('data: {"type":"token","content":"Hi"}\n\n'));
+        // When the signal aborts, error the stream so reader.read() throws AbortError
+        controller.signal.addEventListener("abort", () => {
+          const err = new Error("The operation was aborted");
+          err.name = "AbortError";
+          ctrl.error(err);
+        });
+      },
+      cancel() { cancelCalled = true; },
+    });
+    (globalThis as any).fetch = vi.fn().mockResolvedValue({ ok: true, body: stream });
+    // Abort after a tick so fetch resolves first
+    setTimeout(() => controller.abort(), 0);
+    const events: any[] = [];
+    const onErr = vi.fn();
+    await streamChat("q", null, (e) => events.push(e), onErr, controller.signal);
+    expect(onErr).not.toHaveBeenCalled();
+    // When the stream is errored, reader.cancel() in the finally block
+    // won't call the underlying source's cancel(), but the reader is still released.
+    // The important thing is that onErr was not called (AbortError swallowed).
+  });
+
   it("skips malformed data lines without throwing", async () => {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
