@@ -9,9 +9,10 @@ services:
     build: ./api
     env_file: .env
     environment:
-      - POSTGRES_DSN=postgresql+asyncpg://rag:rag@postgres:5432/rag
+      - POSTGRES_DSN=postgresql+asyncpg://${POSTGRES_USER:-rag}:${POSTGRES_PASSWORD:-rag}@postgres:5432/${POSTGRES_DB:-rag}
       - QDRANT_URL=http://qdrant:6333
       - DATA_DIR=/data/manuals
+      - API_KEY=${API_KEY:-}
     volumes:
       - manuals:/data/manuals
     ports:
@@ -25,13 +26,13 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: rag
-      POSTGRES_PASSWORD: rag
-      POSTGRES_DB: rag
+      POSTGRES_USER: ${POSTGRES_USER:-rag}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rag}
+      POSTGRES_DB: ${POSTGRES_DB:-rag}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rag"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rag}"]
       interval: 5s
       timeout: 3s
       retries: 10

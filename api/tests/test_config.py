@@ -13,3 +13,11 @@ def test_settings_reads_env_defaults(monkeypatch):
     assert s.embed_dim == 768
     assert s.rerank_enabled is True
     assert s.retrieval_top_k == 5  # default retained
+
+
+def test_postgres_dsn_env_override(monkeypatch):
+    monkeypatch.setenv("POSTGRES_DSN", "postgresql+asyncpg://u:p@h:5432/d")
+    from app.config import get_settings
+    get_settings.cache_clear()
+    s = get_settings()
+    assert s.postgres_dsn == "postgresql+asyncpg://u:p@h:5432/d"
