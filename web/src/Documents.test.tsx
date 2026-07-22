@@ -22,7 +22,7 @@ describe("Documents", () => {
   it("renders dropzone and table structure", async () => {
     render(<Documents />);
     expect(screen.getByText("Drag & drop files here or click to browse")).toBeInTheDocument();
-    expect(screen.getByText("Supports PDF, TXT, MD, JSON")).toBeInTheDocument();
+    expect(screen.getByText("Supports PDF, DOCX, HTML")).toBeInTheDocument();
     expect(await screen.findByText("Document Title")).toBeInTheDocument();
     expect(screen.getByText("Chunk Count")).toBeInTheDocument();
     expect(screen.getByText("Status")).toBeInTheDocument();
@@ -76,5 +76,16 @@ describe("Documents", () => {
     // at least one more call happened after the status flip
     expect(afterCalls).toBeGreaterThanOrEqual(initialCalls + 1);
     vi.useRealTimers();
+  });
+
+  it("resets the file input after upload so the same file can be re-uploaded", async () => {
+    const user = userEvent.setup();
+    render(<Documents />);
+    await screen.findByText("m.pdf");
+    const input = screen.getByLabelText("Upload manual") as HTMLInputElement;
+    const file = new File(["x"], "new.pdf");
+    await user.upload(input, file);
+    expect(uploadDocument).toHaveBeenCalledTimes(1);
+    expect(input.value).toBe("");
   });
 });

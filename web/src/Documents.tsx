@@ -3,7 +3,7 @@ import { uploadDocument, listDocuments, deleteDocument } from "./api";
 import { DocumentRow } from "./types";
 import { UploadIcon, TrashIcon, FileTextIcon } from "./components/Icons";
 
-const INFLIGHT = new Set(["pending", "parsing", "embedding", "processing"]);
+const INFLIGHT = new Set(["pending", "parsing", "embedding"]);
 
 export function Documents() {
   const [docs, setDocs] = useState<DocumentRow[]>([]);
@@ -98,14 +98,14 @@ export function Documents() {
           <UploadIcon size={36} />
         </div>
         <p className="dropzone-title">Drag & drop files here or click to browse</p>
-        <p className="dropzone-hint">Supports PDF, TXT, MD, JSON</p>
+        <p className="dropzone-hint">Supports PDF, DOCX, HTML</p>
         <input
           ref={fileInput}
           type="file"
           multiple
-          accept=".pdf,.txt,.md,.json,.docx,.html,.htm"
+          accept=".pdf,.docx,.html,.htm"
           aria-label="Upload manual"
-          onChange={(e) => handleFiles(e.target.files)}
+          onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
           style={{ display: "none" }}
         />
       </div>
