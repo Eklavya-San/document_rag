@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.base import get_session
@@ -18,12 +19,17 @@ async def upload_document(
     settings = request.app.state.settings
     os.makedirs(settings.data_dir, exist_ok=True)
     repo = DocumentRepository(session)
-    doc = await repo.create(file.filename)
-    save_path = os.path.join(settings.data_dir, f"{doc.id}_{file.filename}")
+    filename = file.filename or "upload"
+    ext = Path(filename).suffix.lower()
+    if ext not in {".pdf", ".docx", ".html", ".htm"}:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext or '(none)'}")
+    safe_name = os.path.basename(filename)
+    doc = await repo.create(safe_name)
+    save_path = os.path.join(settings.data_dir, f"{doc.id}_{safe_name}")
     with open(save_path, "wb") as f:
         f.write(await file.read())
     # The background task opens its OWN session (the request session closes with the request).
-    background.add_task(_run_ingest, doc.id, save_path, file.filename, request.app)
+    background.add_task(_run_ingest, doc.id, save_path, safe_name, request.app)
     return _doc_dict(await repo.get(doc.id))
 
 
@@ -59,7 +65,7 @@ async def delete_document(doc_id: int, request: Request, session: AsyncSession =
         raise HTTPException(status_code=404, detail="document not found")
     await request.app.state.qdrant.delete_by_doc(doc_id)
     settings = request.app.state.settings
-    save_path = os.path.join(settings.data_dir, f"{doc_id}_{doc.filename}")
+    save_path = os.path.join(settings.data_dir, f"{doc_id}_{os.path.basename(doc.filename)}")
     if os.path.exists(save_path):
         os.remove(save_path)
     await repo.delete(doc_id)

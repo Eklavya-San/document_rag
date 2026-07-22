@@ -32,12 +32,12 @@ def client(monkeypatch, tmp_path):
     app.dependency_overrides.clear()
 
 
-def test_upload_creates_row_and_runs_ingest(client):
+def test_upload_creates_row_and_runs_ingest(client, monkeypatch):
     # Patch the background ingest (referenced by name in the router wrapper) to mark the doc done.
     import app.routers.documents as docs
     async def fake_ingest(doc_id, file_path, filename, repo, embedder, qdrant, settings):
         await repo.set_status(doc_id, "done", chunk_count=1, parser_used="pdf")
-    docs.ingest_document = fake_ingest
+    monkeypatch.setattr(docs, "ingest_document", fake_ingest)
 
     files = {"file": ("m.pdf", b"%PDF-1.4 fake", "application/pdf")}
     r = client.post("/documents/upload", files=files)
@@ -59,14 +59,21 @@ def test_upload_creates_row_and_runs_ingest(client):
     assert missing.status_code == 404
 
 
-def test_delete_removes_row(client):
+def test_delete_removes_row(client, monkeypatch):
     import app.routers.documents as docs
     async def fake_ingest(doc_id, file_path, filename, repo, embedder, qdrant, settings):
         await repo.set_status(doc_id, "done", chunk_count=1, parser_used="pdf")
-    docs.ingest_document = fake_ingest
+    monkeypatch.setattr(docs, "ingest_document", fake_ingest)
 
     files = {"file": ("m.pdf", b"%PDF-1.4 fake", "application/pdf")}
     doc_id = client.post("/documents/upload", files=files).json()["id"]
     r = client.delete(f"/documents/{doc_id}")
     assert r.status_code == 204
     assert client.get(f"/documents/{doc_id}").status_code == 404
+
+
+def test_upload_rejects_unsupported_type(client):
+    files = {"file": ("notes.txt", b"hello", "text/plain")}
+    r = client.post("/documents/upload", files=files)
+    assert r.status_code == 400
+    assert "Unsupported" in r.json()["detail"]

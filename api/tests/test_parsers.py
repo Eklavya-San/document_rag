@@ -50,7 +50,6 @@ def test_pdf_parser_extracts_text_per_page():
 
 def test_pdf_with_no_text_raises_ocr_required():
     # A PDF whose page has no extractable text simulates a scanned PDF.
-    import app.ingestion.parsers as parsers
     with tempfile.TemporaryDirectory() as d:
         p = os.path.join(d, "m.pdf")
         pdf = FPDF()

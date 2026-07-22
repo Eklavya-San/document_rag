@@ -23,7 +23,7 @@ def chunk_pages(pages: list[Page], size_chars: int, overlap_chars: int) -> list[
                 if space > start:
                     end = space
             piece = text[start:end]
-            if piece:
+            if piece.strip():
                 chunks.append(Chunk(text=piece, page=page.number))
             if end >= n:
                 break
