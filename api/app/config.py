@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     # Upload ceiling enforced server-side (bytes)
     max_upload_bytes: int = 200 * 1024 * 1024
 
+    # DOCX decompression bomb guard (bytes)
+    docx_max_decompressed_bytes: int = 100 * 1024 * 1024
+
     # App
     api_host: str = "0.0.0.0"
     api_port: int = 8000

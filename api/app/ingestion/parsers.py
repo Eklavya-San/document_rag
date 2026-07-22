@@ -43,8 +43,18 @@ def _parse_pdf(path: str) -> list[Page]:
 
 
 def _parse_docx(path: str) -> list[Page]:
-    from docx import Document as DocxDocument
-    doc = DocxDocument(path)
+    import zipfile
+    from app.config import get_settings
+    limit = get_settings().docx_max_decompressed_bytes
+    total = 0
+    with zipfile.ZipFile(path) as zf:
+        for info in zf.infolist():
+            total += info.file_size
+            if total > limit:
+                raise UnsupportedFileError("DOCX decompressed size exceeds limit (possible zip bomb)")
+        from docx import Document as DocxDocument
+        # python-docx re-opens the file; safe now that we validated sizes
+        doc = DocxDocument(path)
     text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
     return [Page(number=1, text=text)]
 

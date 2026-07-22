@@ -1,9 +1,12 @@
+import io
 import os
 import tempfile
+import zipfile
+
 import pytest
 from fpdf import FPDF
 from docx import Document as DocxDocument
-from app.ingestion.parsers import parse_file, Page, OcrRequiredError, UnsupportedFileError
+from app.ingestion.parsers import _parse_docx, parse_file, Page, OcrRequiredError, UnsupportedFileError
 
 
 def _write(path, content):
@@ -65,3 +68,38 @@ def test_unsupported_extension_raises():
         _write(p, "hello")
         with pytest.raises(UnsupportedFileError):
             parse_file(p, "m.txt")
+
+
+def _make_minimal_docx(path, content):
+    """Build a minimal valid .docx (OPC zip) with the given word/document.xml content."""
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            '<Default Extension="xml" ContentType="application/xml"/>'
+            '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+            '</Types>'
+        ))
+        z.writestr("_rels/.rels", (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
+            '</Relationships>'
+        ))
+        z.writestr("word/_rels/document.xml.rels", (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>'
+        ))
+        z.writestr("word/document.xml", content)
+
+
+def test_docx_zip_bomb_rejected(tmp_path, monkeypatch):
+    from app.config import get_settings
+    monkeypatch.setenv("DOCX_MAX_DECOMPRESSED_BYTES", "1024")
+    get_settings.cache_clear()
+    # a real .docx is a zip; build a tiny one with one huge member
+    bomb_path = tmp_path / "bomb.docx"
+    _make_minimal_docx(bomb_path, "A" * (10 * 1024))
+    with pytest.raises(UnsupportedFileError):
+        _parse_docx(str(bomb_path))
