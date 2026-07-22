@@ -1,9 +1,11 @@
+import json
 from collections.abc import AsyncIterator
 import httpx
+from app.config import Settings
 
 
 class OllamaClient:
-    def __init__(self, settings):
+    def __init__(self, settings: Settings):
         self.settings = settings
         self._base = settings.ollama_base_url.rstrip("/")
 
@@ -38,7 +40,6 @@ class OllamaClient:
                 async for line in r.aiter_lines():
                     if not line:
                         continue
-                    import json
                     chunk = json.loads(line)
                     piece = chunk.get("message", {}).get("content", "")
                     if piece:

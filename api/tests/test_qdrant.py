@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from app.config import Settings
 from app.qdrant.client import QdrantStore
 

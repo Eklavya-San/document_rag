@@ -1,3 +1,4 @@
+from app.config import Settings
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qm
 
@@ -5,7 +6,7 @@ COLLECTION = "manuals"
 
 
 class QdrantStore:
-    def __init__(self, settings):
+    def __init__(self, settings: Settings):
         self.settings = settings
         self._client = QdrantClient(url=settings.qdrant_url)
 
