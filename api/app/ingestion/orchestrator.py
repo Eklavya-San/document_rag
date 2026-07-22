@@ -31,12 +31,11 @@ async def ingest_document(
             return
 
         await repo.set_status(doc_id, "embedding", parser_used=parser_used, chunk_count=len(chunks))
-        points = []
         for i in range(0, len(chunks), EMBED_BATCH):
             batch = chunks[i:i + EMBED_BATCH]
             vectors = await embedder.embed([c.text for c in batch])
-            for chunk, vector in zip(batch, vectors, strict=True):
-                points.append({
+            points = [
+                {
                     "id": str(uuid.uuid4()),
                     "vector": vector,
                     "payload": {
@@ -46,8 +45,10 @@ async def ingest_document(
                         "text": chunk.text,
                         "language": "auto",
                     },
-                })
-        await qdrant.upsert(points=points)
+                }
+                for chunk, vector in zip(batch, vectors, strict=True)
+            ]
+            await qdrant.upsert(points=points)
         await repo.set_status(doc_id, "done", chunk_count=len(chunks), parser_used=parser_used)
     except Exception as e:
         try:

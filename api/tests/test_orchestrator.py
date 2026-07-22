@@ -46,12 +46,14 @@ async def test_ingest_happy_path_marks_done_and_upserts():
         assert fetched.chunk_count == 1
         assert fetched.parser_used == "pdf"
         qdrant.upsert.assert_awaited()
-        points = qdrant.upsert.call_args.kwargs["points"]
-        assert points[0]["payload"]["doc_id"] == doc.id
-        assert points[0]["payload"]["page"] == 1
-        assert "serviced" in points[0]["payload"]["text"]
-        assert points[0]["payload"]["filename"] == "m.pdf"
-        assert points[0]["payload"]["language"] == "auto"
+        all_points = [p for c in qdrant.upsert.call_args_list for p in c.kwargs["points"]]
+        assert all_points
+        assert all(p["payload"]["doc_id"] == doc.id for p in all_points)
+        assert all_points[0]["payload"]["page"] == 1
+        assert any("serviced" in p["payload"]["text"] for p in all_points)
+        assert all(p["payload"]["filename"] == "m.pdf" for p in all_points)
+        assert all(p["payload"]["language"] == "auto" for p in all_points)
+        assert len(all_points) == fetched.chunk_count
         await session.close()
         await engine.dispose()
 
@@ -103,4 +105,23 @@ async def test_partial_failure_cleans_qdrant_and_marks_failed():
     fetched = await repo.get(doc.id)
     assert fetched.status == "failed"
     qdrant.delete_by_doc.assert_awaited_with(doc.id)
+    await session.close(); await engine.dispose()
+
+
+async def test_multi_batch_upserts_per_batch(monkeypatch):
+    import app.ingestion.orchestrator as orch
+    monkeypatch.setattr(orch, "EMBED_BATCH", 2)
+    repo, doc, engine, session = await _repo_with_one_doc("m.pdf")
+    # produce 5 chunks via a fake parse
+    from app.ingestion.parsers import Page
+    monkeypatch.setattr(orch, "parse_file", lambda p, f: [Page(number=1, text="c " * 4000)])
+    embedder = AsyncMock()
+    embedder.embed = AsyncMock(side_effect=lambda texts: [[0.1] for _ in texts])
+    qdrant = AsyncMock(); qdrant.upsert = AsyncMock(); qdrant.delete_by_doc = AsyncMock()
+    await ingest_document(doc.id, "/dev/null", "m.pdf", repo, embedder, qdrant, Settings())
+    assert qdrant.upsert.await_count >= 3  # 5 chunks in batches of 2 -> 3 upserts
+    total_points = sum(len(c.kwargs["points"]) for c in qdrant.upsert.call_args_list)
+    assert total_points == 5
+    fetched = await repo.get(doc.id)
+    assert fetched.status == "done" and fetched.chunk_count == 5
     await session.close(); await engine.dispose()
