@@ -26,10 +26,16 @@ async def test_can_insert_and_read_document(session: AsyncSession):
 
 
 async def test_chat_session_has_messages_relationship(session: AsyncSession):
+    from sqlalchemy import select
     cs = ChatSession(title="t")
     msg = ChatMessage(role="user", content="hi")
     cs.messages.append(msg)
     session.add(cs)
     await session.commit()
     assert cs.id is not None
-    assert cs.messages[0].role == "user"
+    result = await session.execute(
+        select(ChatMessage).where(ChatMessage.session_id == cs.id)
+    )
+    persisted = result.scalar_one()
+    assert persisted.role == "user"
+    assert persisted.session_id == cs.id
