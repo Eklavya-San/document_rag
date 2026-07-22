@@ -34,3 +34,41 @@ class DocumentRepository:
     async def delete(self, doc_id: int) -> None:
         await self.session.execute(delete(Document).where(Document.id == doc_id))
         await self.session.commit()
+
+
+from sqlalchemy import select
+from app.db.models import ChatSession, ChatMessage
+
+
+class ChatRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create_session(self, title: str | None = None) -> ChatSession:
+        sess = ChatSession(title=title)
+        self.session.add(sess)
+        await self.session.commit()
+        await self.session.refresh(sess)
+        return sess
+
+    async def get_session(self, session_id: int) -> ChatSession | None:
+        result = await self.session.execute(select(ChatSession).where(ChatSession.id == session_id))
+        return result.scalar_one_or_none()
+
+    async def add_message(self, session_id: int, role: str, content: str, sources_json=None) -> ChatMessage:
+        msg = ChatMessage(session_id=session_id, role=role, content=content, sources_json=sources_json)
+        self.session.add(msg)
+        await self.session.commit()
+        await self.session.refresh(msg)
+        return msg
+
+    async def list_messages(self, session_id: int, limit: int) -> list[ChatMessage]:
+        # last `limit` messages, returned oldest-first
+        stmt = (
+            select(ChatMessage)
+            .where(ChatMessage.session_id == session_id)
+            .order_by(ChatMessage.id.desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return list(reversed(result.scalars().all()))
