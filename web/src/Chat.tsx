@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { streamChat } from "./sse";
 import { Source } from "./types";
@@ -16,6 +16,10 @@ const PROMPT_SUGGESTIONS = [
   "Summarize technical architecture and chunking logic",
   "Search vector database for configuration settings",
 ];
+
+const Markdown = React.memo(function Markdown({ content }: { content: string }) {
+  return <ReactMarkdown>{content}</ReactMarkdown>;
+});
 
 export function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -133,7 +137,7 @@ export function Chat() {
             messages.map((m, i) => (
               <div key={i} className={`msg ${m.role}`}>
                 {m.role === "assistant" ? (
-                  <ReactMarkdown>{m.content || (m.streaming ? "…" : "")}</ReactMarkdown>
+                  <Markdown content={m.content || (m.streaming ? "…" : "")} />
                 ) : (
                   <p>{m.content}</p>
                 )}

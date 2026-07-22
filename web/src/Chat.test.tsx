@@ -85,4 +85,17 @@ describe("Chat", () => {
     const live = document.querySelector("[aria-live='polite']");
     expect(live).not.toBeNull();
   });
+
+  it("renders markdown content as HTML", async () => {
+    vi.mocked(streamChat).mockImplementationOnce(async (_q, _id, onEvent: (e: any) => void) => {
+      onEvent({ type: "session", session_id: 9 });
+      onEvent({ type: "token", content: "**bold**" });
+      onEvent({ type: "done" });
+    });
+    const user = userEvent.setup();
+    render(<Chat />);
+    await user.type(screen.getByPlaceholderText("Ask about the manuals…"), "q");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByText("bold")).toBeInTheDocument();
+  });
 });
