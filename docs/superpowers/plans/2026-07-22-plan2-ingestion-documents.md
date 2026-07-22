@@ -980,37 +980,39 @@ git commit -m "feat: ingestion orchestrator (parse→chunk→embed→upsert)"
 
 **Files:**
 - Create: `api/app/routers/documents.py`
-- Modify: `api/app/main.py` (include the documents router)
+- Modify: `api/app/db/base.py` (expose the session factory as a public `session_factory`)
+- Modify: `api/app/main.py` (include the documents router; set `app.state.session_factory`)
 - Create: `api/tests/test_documents_api.py`
 
 **Interfaces:**
-- Consumes: `DocumentRepository`, `QdrantStore`, `OllamaClient`, `ingest_document`, `Settings`, `get_session` (Plan 1), and the `DATA_DIR` setting.
+- Consumes: `DocumentRepository`, `QdrantStore`, `OllamaClient`, `ingest_document`, `Settings`, `get_session` + `session_factory` (Plan 1 / this task), and the `DATA_DIR` setting.
 - Produces REST endpoints:
-  - `POST /documents/upload` (multipart `file`) → saves to `DATA_DIR`, creates a `documents` row (`pending`), schedules `ingest_document` as a background task, returns the row.
+  - `POST /documents/upload` (multipart `file`) → saves to `DATA_DIR`, creates a `documents` row (`pending`) in the REQUEST session, schedules a background wrapper that opens its OWN session from `app.state.session_factory` and runs `ingest_document`, returns the row.
   - `GET /documents` → list all rows.
   - `GET /documents/{id}` → one row or 404.
   - `DELETE /documents/{id}` → delete Qdrant points for the doc, remove the file, delete the row, return 204.
+
+**Design note (important):** The background ingestion task runs AFTER the response is sent, so it must NOT reuse the request's DB session (which closes with the request). The endpoint creates the `documents` row in the request session, then schedules a wrapper that opens a fresh session from `app.state.session_factory` and runs `ingest_document` with a repo built on that fresh session. This is correct for production and testable: tests point both `get_session` (override) and `app.state.session_factory` at the same per-test sqlite file so the background task sees the committed row.
 
 - [ ] **Step 1: Write the failing test**
 
 `api/tests/test_documents_api.py`:
 ```python
-import os
-import tempfile
 from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.db.base import Base, get_session
-from app.db.repositories import DocumentRepository
 from app.main import create_app
 from app.config import get_settings
 
 
 @pytest.fixture
 def client(monkeypatch, tmp_path):
-    # isolated sqlite + a fake qdrant/ollama and a no-op ingest background task
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
+    # Per-test sqlite FILE (so the background task's own session sees committed rows),
+    # a fake qdrant/ollama, and app.state.session_factory pointed at the same factory.
+    db_file = tmp_path / "test.db"
+    engine = create_async_engine(f"sqlite+aiosqlite:///{db_file}", future=True)
     factory = async_sessionmaker(engine, expire_on_commit=False)
 
     async def override_get_session():
@@ -1023,14 +1025,15 @@ def client(monkeypatch, tmp_path):
     get_settings.cache_clear()
     app = create_app()
     app.dependency_overrides[get_session] = override_get_session
+    app.state.session_factory = factory
     app.state.qdrant = AsyncMock()
     app.state.ollama = AsyncMock()
     yield TestClient(app)
     app.dependency_overrides.clear()
 
 
-def test_upload_creates_row_and_runs_ingest(client, tmp_path):
-    # patch the background ingest to a no-op that marks the doc done
+def test_upload_creates_row_and_runs_ingest(client):
+    # Patch the background ingest (referenced by name in the router wrapper) to mark the doc done.
     import app.routers.documents as docs
     async def fake_ingest(doc_id, file_path, filename, repo, embedder, qdrant, settings):
         await repo.set_status(doc_id, "done", chunk_count=1, parser_used="pdf")
@@ -1069,7 +1072,9 @@ def test_delete_removes_row(client):
     assert client.get(f"/documents/{doc_id}").status_code == 404
 ```
 
-> Note: the upload saves the uploaded bytes to `DATA_DIR` even though the bytes are not a real PDF; the background `fake_ingest` here does not call the real parser, so parsing is not exercised in this test (the orchestrator test in Task 6 covers real parsing). The point of this test is the HTTP surface + status flow + delete.
+> Notes:
+> - `TestClient(app)` is used WITHOUT a `with` block, so the app lifespan (which would overwrite `app.state.qdrant` with a real `QdrantStore`) does NOT run; the fixture's `AsyncMock` for qdrant stays in place. If a future Starlette version runs lifespan without `with`, switch the fixture to patch `QdrantStore` instead.
+> - The upload saves the uploaded bytes to `DATA_DIR` even though they are not a real PDF; the patched `fake_ingest` does not call the real parser (the orchestrator test in Task 6 covers real parsing). This test covers the HTTP surface + status flow + delete.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -1104,11 +1109,18 @@ async def upload_document(
     save_path = os.path.join(settings.data_dir, f"{doc.id}_{file.filename}")
     with open(save_path, "wb") as f:
         f.write(await file.read())
-    background.add_task(
-        ingest_document, doc.id, save_path, file.filename,
-        repo, request.app.state.ollama, request.app.state.qdrant, settings,
-    )
+    # The background task opens its OWN session (the request session closes with the request).
+    background.add_task(_run_ingest, doc.id, save_path, file.filename, request.app)
     return _doc_dict(await repo.get(doc.id))
+
+
+async def _run_ingest(doc_id: int, file_path: str, filename: str, app):
+    async with app.state.session_factory() as session:
+        repo = DocumentRepository(session)
+        await ingest_document(
+            doc_id, file_path, filename, repo,
+            app.state.ollama, app.state.qdrant, app.state.settings,
+        )
 
 
 @router.get("")
@@ -1152,12 +1164,25 @@ def _doc_dict(doc):
     }
 ```
 
-- [ ] **Step 4: Register the router in `main.py`**
+- [ ] **Step 4: Expose `session_factory` and register the router**
 
-In `api/app/main.py` `create_app`, add:
+First, in `api/app/db/base.py`, rename the private `_session_factory` to a public `session_factory` and update `get_session` to use it:
 ```python
+session_factory = async_sessionmaker(async_engine, expire_on_commit=False)
+
+
+async def get_session() -> AsyncIterator[AsyncSession]:
+    async with session_factory() as session:
+        yield session
+```
+(Delete the old `_session_factory` line; `get_session` is the only existing user.)
+
+Then, in `api/app/main.py` `create_app`, set `app.state.session_factory` and include the documents router:
+```python
+from app.db.base import session_factory
 from app.routers import documents
 ...
+    app.state.session_factory = session_factory
     app.include_router(health.router)
     app.include_router(documents.router)
 ```
@@ -1170,7 +1195,7 @@ Expected: PASS (2 tests). Full suite green.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add api/app/routers/documents.py api/app/main.py api/tests/test_documents_api.py
+git add api/app/routers/documents.py api/app/db/base.py api/app/main.py api/tests/test_documents_api.py
 git commit -m "feat: /documents upload/list/detail/delete endpoints"
 ```
 
