@@ -47,9 +47,16 @@ def app_with_fakes(monkeypatch, tmp_path):
     engine = create_async_engine(f"sqlite+aiosqlite:///{db_file}", future=True)
     factory = async_sessionmaker(engine, expire_on_commit=False)
 
-    async def override_get_session():
+    # Create tables on the engine so that short-lived sessions (opened directly
+    # from factory) also work.
+    async def _init_db():
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+
+    import asyncio
+    asyncio.run(_init_db())
+
+    async def override_get_session():
         async with factory() as session:
             yield session
 
@@ -155,3 +162,45 @@ def test_question_too_long(app_with_fakes, monkeypatch):
     # chat streams; a 422 happens before streaming starts
     r = client.post("/chat", json={"question": long_q})
     assert r.status_code == 422
+
+
+class StreamCrashOllama:
+    async def embed(self, texts):
+        return [[0.1, 0.2] for _ in texts]
+
+    async def chat_stream(self, messages):
+        yield "Hel"
+        raise RuntimeError("boom")
+
+    async def ping(self):
+        return True
+
+
+def test_503_does_not_create_session(app_with_fakes):
+    app, factory = app_with_fakes
+    app.state.ollama = DeadOllama()
+    app.state.qdrant = FakeQdrant()
+    client = _client(app)
+    r = client.post("/chat", json={"question": "how to calibrate?"})
+    assert r.status_code == 503
+    # a subsequent successful chat must start at session_id 1 (no orphan session from the 503)
+    app.state.ollama = FakeOllama()
+    r2 = client.post("/chat", json={"question": "how to calibrate?"})
+    events = _parse_sse(r2.text)
+    assert events[0]["session_id"] == 1
+
+
+def test_partial_answer_persisted_on_stream_crash(app_with_fakes):
+    app, factory = app_with_fakes
+    app.state.ollama = StreamCrashOllama()
+    app.state.qdrant = FakeQdrant()
+    client = _client(app)
+    r = client.post("/chat", json={"question": "how to calibrate?"})
+    assert r.status_code == 200
+    events = _parse_sse(r.text)
+    session_id = events[0]["session_id"]
+    assert events[-1]["type"] == "done"
+    hist = client.get(f"/chat/sessions/{session_id}/messages").json()
+    roles = [m["role"] for m in hist]
+    assert roles == ["user", "assistant"]
+    assert hist[1]["content"] == "Hel"

@@ -19,35 +19,44 @@ class ChatRequest(BaseModel):
 
 
 @router.post("")
-async def chat(req: ChatRequest, request: Request, session: AsyncSession = Depends(get_session)):
+async def chat(req: ChatRequest, request: Request):
     settings = request.app.state.settings
     if len(req.question) > settings.max_question_chars:
         raise HTTPException(status_code=422, detail="question too long")
-    repo = ChatRepository(session)
 
+    # Validate existing session + fetch prior history in a short-lived session.
+    prior_history: list = []
     if req.session_id:
-        sess = await repo.get_session(req.session_id)
-        if sess is None:
-            raise HTTPException(status_code=404, detail="session not found")
-    else:
-        sess = await repo.create_session(title=req.question[:80])
-    await repo.add_message(sess.id, "user", req.question)
-    history = await repo.list_messages(sess.id, settings.chat_history_turns + 1)
-    # history is oldest-first and ends with the user message just added; drop it so the
-    # current question (passed separately to build_messages) is not duplicated.
-    prior_history = history[:-1]
+        async with request.app.state.session_factory() as session:
+            repo = ChatRepository(session)
+            sess = await repo.get_session(req.session_id)
+            if sess is None:
+                raise HTTPException(status_code=404, detail="session not found")
+            prior_history = await repo.list_messages(req.session_id, settings.chat_history_turns)
 
+    # Retrieval BEFORE committing the user message, so a 503 leaves no orphan.
     ollama = request.app.state.ollama
     qdrant = request.app.state.qdrant
     retriever = Retriever(ollama, qdrant, settings)
-
     try:
         sources = await retriever.retrieve(req.question)
     except Exception:
         logging.getLogger("uvicorn.error").exception("chat retrieval failed")
         raise HTTPException(status_code=503, detail="AI service unavailable")
 
-    session_id = sess.id
+    # Create/fetch session + commit user message in a short-lived session.
+    async with request.app.state.session_factory() as session:
+        repo = ChatRepository(session)
+        if req.session_id:
+            sess = await repo.get_session(req.session_id)
+            if sess is None:
+                raise HTTPException(status_code=404, detail="session not found")
+            session_id = sess.id
+        else:
+            sess = await repo.create_session(title=req.question[:80])
+            session_id = sess.id
+        await repo.add_message(session_id, "user", req.question)
+
     source_dicts = [_source_dict(s) for s in sources]
 
     if not sources:
@@ -68,16 +77,20 @@ async def chat(req: ChatRequest, request: Request, session: AsyncSession = Depen
 
     async def generate():
         yield _sse({"type": "session", "session_id": session_id})
-        collected = []
-        async for piece in ollama.chat_stream(messages):
-            collected.append(piece)
-            yield _sse({"type": "token", "content": piece})
-        answer = "".join(collected)
+        collected: list[str] = []
         try:
-            async with request.app.state.session_factory() as s:
-                await ChatRepository(s).add_message(session_id, "assistant", answer, sources_json=source_dicts)
+            async for piece in ollama.chat_stream(messages):
+                collected.append(piece)
+                yield _sse({"type": "token", "content": piece})
         except Exception:
-            logging.getLogger("uvicorn.error").exception("failed to persist assistant message")
+            logging.getLogger("uvicorn.error").exception("chat stream failed")
+        finally:
+            answer = "".join(collected)
+            try:
+                async with request.app.state.session_factory() as s:
+                    await ChatRepository(s).add_message(session_id, "assistant", answer, sources_json=source_dicts)
+            except Exception:
+                logging.getLogger("uvicorn.error").exception("failed to persist assistant message")
         yield _sse({"type": "sources", "sources": source_dicts})
         yield _sse({"type": "done"})
 
