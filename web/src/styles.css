@@ -703,6 +703,12 @@ html[data-theme="dark"] .msg.assistant code {
   transition: all var(--transition-fast);
 }
 
+button.dropzone {
+  font: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+
 .dropzone:hover,
 .dropzone.over,
 .dropzone-active {

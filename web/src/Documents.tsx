@@ -90,7 +90,8 @@ export function Documents() {
         handleFiles(e.dataTransfer.files);
       }}
     >
-      <div
+      <button
+        type="button"
         className={`dropzone ${dragOver ? "over" : ""}`}
         onClick={() => fileInput.current?.click()}
       >
@@ -108,7 +109,7 @@ export function Documents() {
           onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
           style={{ display: "none" }}
         />
-      </div>
+      </button>
 
       {isUploading && (
         <div className="upload-progress-container">

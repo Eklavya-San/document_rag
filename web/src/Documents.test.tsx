@@ -88,4 +88,17 @@ describe("Documents", () => {
     expect(uploadDocument).toHaveBeenCalledTimes(1);
     expect(input.value).toBe("");
   });
+
+  it("dropzone is keyboard-focusable and Enter opens the picker", async () => {
+    const user = userEvent.setup();
+    render(<Documents />);
+    await screen.findByText("m.pdf");
+    const dropzone = screen.getByRole("button", { name: /drag & drop files here or click to browse/i });
+    dropzone.focus();
+    expect(dropzone).toHaveFocus();
+    const input = screen.getByLabelText("Upload manual") as HTMLInputElement;
+    const spy = vi.spyOn(input, "click");
+    await user.keyboard("{Enter}");
+    expect(spy).toHaveBeenCalled();
+  });
 });
