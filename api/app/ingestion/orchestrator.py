@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from app.config import Settings
 from app.db.repositories import DocumentRepository
@@ -20,7 +21,7 @@ async def ingest_document(
 ) -> None:
     try:
         await repo.set_status(doc_id, "parsing")
-        pages = parse_file(file_path, filename)
+        pages = await asyncio.to_thread(parse_file, file_path, filename)
         parser_used = _parser_used(filename)
         size_chars = settings.chunk_size_tokens * 4
         overlap_chars = settings.chunk_overlap_tokens * 4

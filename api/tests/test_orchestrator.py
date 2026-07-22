@@ -1,5 +1,7 @@
+import asyncio
 import os
 import tempfile
+import threading
 from unittest.mock import AsyncMock
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.db.base import Base
@@ -70,3 +72,22 @@ async def test_ingest_ocr_required_marks_failed():
         qdrant.upsert.assert_not_awaited()
         await session.close()
         await engine.dispose()
+
+
+async def test_parse_runs_off_event_loop_thread(monkeypatch):
+    import app.ingestion.orchestrator as orch
+    main_thread = threading.get_ident()
+    seen = {}
+
+    def spy_parse(path, filename):
+        seen["thread"] = threading.get_ident()
+        from app.ingestion.parsers import Page
+        return [Page(number=1, text="serviced annually")]
+
+    monkeypatch.setattr(orch, "parse_file", spy_parse)
+    repo, doc, engine, session = await _repo_with_one_doc("m.pdf")
+    embedder = AsyncMock(); embedder.embed = AsyncMock(return_value=[[0.1, 0.2]])
+    qdrant = AsyncMock(); qdrant.upsert = AsyncMock()
+    await ingest_document(doc.id, "/dev/null", "m.pdf", repo, embedder, qdrant, Settings())
+    assert seen["thread"] != main_thread, "parse_file must run in a worker thread, not the event loop thread"
+    await session.close(); await engine.dispose()
