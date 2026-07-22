@@ -40,4 +40,9 @@ describe("api helpers", () => {
     (globalThis.fetch as any).mockResolvedValue({ ok: false, status: 503, statusText: "AI service unavailable" });
     await expect(listDocuments()).rejects.toThrow("503");
   });
+
+  it("surfaces the backend detail body in the thrown error", async () => {
+    (globalThis.fetch as any).mockResolvedValue({ ok: false, status: 400, statusText: "Bad Request", json: async () => ({ detail: "Unsupported file type: .txt" }) });
+    await expect(listDocuments()).rejects.toThrow("Unsupported file type: .txt");
+  });
 });

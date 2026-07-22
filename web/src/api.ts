@@ -1,7 +1,16 @@
 import { DocumentRow, StoredMessage } from "./types";
 
 async function jsonOrThrow<T>(resp: Response): Promise<T> {
-  if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`.trim());
+  if (!resp.ok) {
+    let detail = resp.statusText;
+    try {
+      const body = await resp.json();
+      if (body && body.detail) detail = body.detail;
+    } catch {
+      // non-JSON body; fall back to status text
+    }
+    throw new Error(`${resp.status} ${detail}`.trim());
+  }
   return resp.json();
 }
 
