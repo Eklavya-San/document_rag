@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     chunk_overlap_tokens: int = 50
     retrieval_top_k: int = 5
     rerank_enabled: bool = False
+    rerank_top_k: int = 4
     chat_history_turns: int = 6
     no_context_threshold: float = 0.35
 

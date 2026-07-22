@@ -37,5 +37,5 @@ class Retriever:
             for h in hits_sorted
         ]
         if self.settings.rerank_enabled:
-            sources = sources[:4]
+            sources = sources[: self.settings.rerank_top_k]
         return sources

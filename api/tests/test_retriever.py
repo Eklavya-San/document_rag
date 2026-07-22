@@ -40,3 +40,17 @@ async def test_retrieve_rerank_enabled_trims_to_four():
     r = Retriever(embedder, qdrant, Settings(retrieval_top_k=6, rerank_enabled=True, no_context_threshold=0.35))
     sources = await r.retrieve("q")
     assert len(sources) == 4
+
+
+async def test_rerank_caps_to_rerank_top_k():
+    from app.rag.retriever import Retriever
+    from app.config import Settings
+    class FakeEmb:
+        async def embed(self, texts): return [[0.1] for _ in texts]
+    class FakeQ:
+        async def search(self, vector, top_k):
+            return [{"text": f"t{i}", "doc_id": 1, "filename": "m.pdf", "page": i, "score": 0.9 - i*0.01} for i in range(top_k)]
+    settings = Settings(retrieval_top_k=10, rerank_enabled=True, rerank_top_k=2)
+    r = Retriever(FakeEmb(), FakeQ(), settings)
+    sources = await r.retrieve("q")
+    assert len(sources) == 2
