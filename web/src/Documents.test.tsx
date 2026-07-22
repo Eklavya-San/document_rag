@@ -19,11 +19,23 @@ import { uploadDocument, deleteDocument, listDocuments } from "./api";
 describe("Documents", () => {
   beforeEach(() => { vi.clearAllMocks(); });
 
-  it("lists documents with status", async () => {
+  it("renders dropzone and table structure", async () => {
+    render(<Documents />);
+    expect(screen.getByText("Drag & drop files here or click to browse")).toBeInTheDocument();
+    expect(screen.getByText("Supports PDF, TXT, MD, JSON")).toBeInTheDocument();
+    expect(await screen.findByText("Document Title")).toBeInTheDocument();
+    expect(screen.getByText("Chunk Count")).toBeInTheDocument();
+    expect(screen.getByText("Status")).toBeInTheDocument();
+    expect(screen.getByText("Actions")).toBeInTheDocument();
+  });
+
+  it("lists documents with status pills and errors", async () => {
     render(<Documents />);
     expect(await screen.findByText("m.pdf")).toBeInTheDocument();
-    expect(screen.getByText((c) => c.startsWith("done"))).toBeInTheDocument();
+    expect(screen.getByText("Indexed")).toBeInTheDocument();
+    expect(screen.getByText("3 chunks")).toBeInTheDocument();
     expect(screen.getByText(/OCR not supported/)).toBeInTheDocument();
+    expect(screen.getByText("Error")).toBeInTheDocument();
   });
 
   it("uploads a chosen file", async () => {
