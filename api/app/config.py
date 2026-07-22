@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # Auth (set in prod; empty/unset disables auth for local dev)
     api_key: str | None = None
 
+    # Chat input length bound
+    max_question_chars: int = 4000
+
     # Upload ceiling enforced server-side (bytes)
     max_upload_bytes: int = 200 * 1024 * 1024
 

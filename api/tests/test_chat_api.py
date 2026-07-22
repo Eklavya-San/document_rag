@@ -140,3 +140,18 @@ def test_session_messages_404_for_missing_session(app_with_fakes):
     client = _client(app)
     r = client.get("/chat/sessions/999999/messages")
     assert r.status_code == 404
+
+
+def test_question_too_long(app_with_fakes, monkeypatch):
+    app, factory = app_with_fakes
+    app.state.ollama = FakeOllama()
+    app.state.qdrant = FakeQdrant()
+    from app.config import get_settings
+    monkeypatch.setenv("MAX_QUESTION_CHARS", "10")
+    get_settings.cache_clear()
+    app.state.settings = get_settings()  # re-read with new env value
+    client = _client(app)
+    long_q = "x" * 100
+    # chat streams; a 422 happens before streaming starts
+    r = client.post("/chat", json={"question": long_q})
+    assert r.status_code == 422

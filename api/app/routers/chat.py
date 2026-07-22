@@ -14,13 +14,15 @@ router = APIRouter(prefix="/chat", tags=["chat"], dependencies=[Depends(require_
 
 
 class ChatRequest(BaseModel):
-    question: str = Field(min_length=1)
+    question: str = Field(min_length=1, max_length=4000)
     session_id: int | None = None
 
 
 @router.post("")
 async def chat(req: ChatRequest, request: Request, session: AsyncSession = Depends(get_session)):
     settings = request.app.state.settings
+    if len(req.question) > settings.max_question_chars:
+        raise HTTPException(status_code=422, detail="question too long")
     repo = ChatRepository(session)
 
     if req.session_id:
