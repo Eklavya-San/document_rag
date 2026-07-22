@@ -15,7 +15,7 @@ async def _lifespan(app: FastAPI):
 
     qdrant = QdrantStore(app.state.settings)
     try:
-        qdrant.ensure_collection()
+        await qdrant.ensure_collection()
     except Exception as e:
         logging.getLogger("uvicorn.error").warning("Qdrant bootstrap skipped: %s", e)
     app.state.qdrant = qdrant
