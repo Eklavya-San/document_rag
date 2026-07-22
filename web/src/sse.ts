@@ -11,7 +11,11 @@ export function parseSseEvents(text: string): ChatEvent[] {
   for (const block of text.split("\n\n")) {
     for (const line of block.split("\n")) {
       if (line.startsWith("data: ")) {
-        events.push(JSON.parse(line.slice(6)) as ChatEvent);
+        try {
+          events.push(JSON.parse(line.slice(6)) as ChatEvent);
+        } catch {
+          // skip malformed line
+        }
       }
     }
   }
@@ -52,7 +56,11 @@ export async function streamChat(
       buffer = buffer.slice(idx + 2);
       for (const line of block.split("\n")) {
         if (line.startsWith("data: ")) {
-          onEvent(JSON.parse(line.slice(6)) as ChatEvent);
+          try {
+            onEvent(JSON.parse(line.slice(6)) as ChatEvent);
+          } catch {
+            // skip malformed line
+          }
         }
       }
     }

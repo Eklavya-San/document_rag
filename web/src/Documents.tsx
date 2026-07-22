@@ -8,18 +8,21 @@ export function Documents() {
   const [docs, setDocs] = useState<DocumentRow[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const docsRef = useRef<DocumentRow[]>([]);
 
   async function refresh() {
     try { setDocs(await listDocuments()); } catch { /* ignore transient */ }
   }
 
+  useEffect(() => { docsRef.current = docs; }, [docs]);
+
   useEffect(() => {
     refresh();
     const id = setInterval(() => {
-      if (docs.some((d) => INFLIGHT.has(d.status))) refresh();
+      if (docsRef.current.some((d) => INFLIGHT.has(d.status))) refresh();
     }, 2000);
     return () => clearInterval(id);
-  }, [docs]);
+  }, []); // mount once
 
   async function handleFiles(files: FileList | null) {
     if (!files) return;

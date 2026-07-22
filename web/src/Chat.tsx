@@ -23,40 +23,49 @@ export function Chat() {
     setBusy(true);
     setMessages((m) => [...m, { role: "user", content: question, sources: [] }, { role: "assistant", content: "", sources: [], streaming: true }]);
 
-    await streamChat(
-      question,
-      sessionRef.current,
-      (e) => {
-        if (e.type === "session") { sessionRef.current = e.session_id; }
-        else if (e.type === "token") {
+    try {
+      await streamChat(
+        question,
+        sessionRef.current,
+        (e) => {
+          if (e.type === "session") { sessionRef.current = e.session_id; }
+          else if (e.type === "token") {
+            setMessages((m) => {
+              const copy = [...m];
+              copy[copy.length - 1] = { ...copy[copy.length - 1], content: copy[copy.length - 1].content + e.content };
+              return copy;
+            });
+          } else if (e.type === "sources") {
+            setMessages((m) => {
+              const copy = [...m];
+              copy[copy.length - 1] = { ...copy[copy.length - 1], sources: e.sources };
+              return copy;
+            });
+          } else if (e.type === "done") {
+            setMessages((m) => {
+              const copy = [...m];
+              copy[copy.length - 1] = { ...copy[copy.length - 1], streaming: false };
+              return copy;
+            });
+          }
+        },
+        (err) => {
           setMessages((m) => {
             const copy = [...m];
-            copy[copy.length - 1] = { ...copy[copy.length - 1], content: copy[copy.length - 1].content + e.content };
+            copy[copy.length - 1] = { role: "assistant", content: `Error: ${err.message}`, sources: [], streaming: false };
             return copy;
           });
-        } else if (e.type === "sources") {
-          setMessages((m) => {
-            const copy = [...m];
-            copy[copy.length - 1] = { ...copy[copy.length - 1], sources: e.sources };
-            return copy;
-          });
-        } else if (e.type === "done") {
-          setMessages((m) => {
-            const copy = [...m];
-            copy[copy.length - 1] = { ...copy[copy.length - 1], streaming: false };
-            return copy;
-          });
-        }
-      },
-      (err) => {
-        setMessages((m) => {
-          const copy = [...m];
-          copy[copy.length - 1] = { role: "assistant", content: `Error: ${err.message}`, sources: [], streaming: false };
-          return copy;
-        });
-      },
-    );
-    setBusy(false);
+        },
+      );
+    } finally {
+      setBusy(false);
+      setMessages((m) => {
+        const copy = [...m];
+        const last = copy[copy.length - 1];
+        if (last && last.role === "assistant") copy[copy.length - 1] = { ...last, streaming: false };
+        return copy;
+      });
+    }
   }
 
   return (

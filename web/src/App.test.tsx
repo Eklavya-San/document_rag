@@ -1,6 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
+import userEvent from "@testing-library/user-event";
 import { App } from "./App";
+
+function setup() {
+  const user = userEvent.setup();
+  return { user, ...render(<App />) };
+}
 
 describe("App", () => {
   it("renders the Chat tab by default", () => {
@@ -14,9 +20,3 @@ describe("App", () => {
     expect(screen.getByLabelText("Upload manual")).toBeInTheDocument();
   });
 });
-
-import userEvent from "@testing-library/user-event";
-function setup() {
-  const user = userEvent.setup();
-  return { user, ...render(<App />) };
-}

@@ -57,4 +57,20 @@ describe("streamChat", () => {
     expect(err).not.toBeNull();
     expect(err!.message).toContain("503");
   });
+
+  it("skips malformed data lines without throwing", async () => {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: {"type":"token","content":"Hi"}\n\n'));
+        controller.enqueue(encoder.encode('data: not-json\n\n'));
+        controller.enqueue(encoder.encode('data: {"type":"done"}\n\n'));
+        controller.close();
+      },
+    });
+    (globalThis as any).fetch = vi.fn().mockResolvedValue({ ok: true, body: stream });
+    const events: any[] = [];
+    await streamChat("q", null, (e) => events.push(e), () => {});
+    expect(events.map((e) => e.type)).toEqual(["token", "done"]);
+  });
 });
