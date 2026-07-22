@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { streamChat } from "./sse";
+import { fetchSessionMessages } from "./api";
 import { Source } from "./types";
 import { CitationDrawer, CitationData } from "./components/CitationDrawer";
 
@@ -31,6 +32,26 @@ export function Chat() {
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  useEffect(() => {
+    const stored = localStorage.getItem("rag_session_id");
+    if (!stored) return;
+    const id = Number(stored);
+    if (!Number.isFinite(id) || id <= 0) return;
+    sessionRef.current = id;
+    fetchSessionMessages(id)
+      .then((msgs) => {
+        setMessages(
+          msgs.map((m) => ({
+            role: m.role,
+            content: m.content,
+            sources: m.sources ?? [],
+            streaming: false,
+          })),
+        );
+      })
+      .catch(() => {});
+  }, []);
+
   async function send(queryOverride?: string) {
     const question = (queryOverride ?? input).trim();
     if (!question || busy) return;
@@ -52,6 +73,7 @@ export function Chat() {
         (e) => {
           if (e.type === "session") {
             sessionRef.current = e.session_id;
+            localStorage.setItem("rag_session_id", String(e.session_id));
           } else if (e.type === "token") {
             setMessages((m) => {
               const copy = [...m];

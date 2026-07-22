@@ -16,15 +16,31 @@ vi.mock("./sse", () => ({
   }),
 }));
 
+vi.mock("./api", () => ({ fetchSessionMessages: vi.fn() }));
+
 import { streamChat } from "./sse";
+import { fetchSessionMessages } from "./api";
 
 describe("Chat", () => {
+  beforeEach(() => localStorage.clear());
+
   it("displays hero welcome state with prompt suggestion chips when empty", () => {
     render(<Chat />);
     expect(screen.getByText("Welcome to RAG Studio")).toBeInTheDocument();
     expect(screen.getByText("What are the key findings in the uploaded documents?")).toBeInTheDocument();
     expect(screen.getByText("Summarize technical architecture and chunking logic")).toBeInTheDocument();
     expect(screen.getByText("Search vector database for configuration settings")).toBeInTheDocument();
+  });
+
+  it("hydrates messages from a stored session id on mount", async () => {
+    localStorage.setItem("rag_session_id", "7");
+    (fetchSessionMessages as any).mockResolvedValue([
+      { role: "user", content: "old question", sources: [] },
+      { role: "assistant", content: "old answer", sources: [] },
+    ]);
+    render(<Chat />);
+    expect(await screen.findByText("old question")).toBeInTheDocument();
+    expect(screen.getByText("old answer")).toBeInTheDocument();
   });
 
   it("submits query when prompt suggestion chip is clicked", async () => {

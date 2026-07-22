@@ -14,7 +14,7 @@ export function App() {
       <div className="app-layout">
         <Header activeTab={tab} />
         <div className="app-body">
-          <Sidebar activeTab={tab} setTab={setTab} onNewChat={() => setChatKey((k) => k + 1)} />
+          <Sidebar activeTab={tab} setTab={setTab} onNewChat={() => { localStorage.removeItem("rag_session_id"); setChatKey((k) => k + 1); }} />
           <main className="main-content">
             {tab === "chat" ? <Chat key={chatKey} /> : <Documents />}
           </main>
