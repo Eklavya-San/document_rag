@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     postgres_dsn: str = "postgresql+asyncpg://rag:rag@postgres:5432/rag"
     data_dir: str = "/data/manuals"
 
+    # Auth (set in prod; empty/unset disables auth for local dev)
+    api_key: str | None = None
+
     # App
     api_host: str = "0.0.0.0"
     api_port: int = 8000

@@ -2,11 +2,12 @@ import os
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.auth import require_api_key
 from app.db.base import get_session
 from app.db.repositories import DocumentRepository
 from app.ingestion.orchestrator import ingest_document
 
-router = APIRouter(prefix="/documents", tags=["documents"])
+router = APIRouter(prefix="/documents", tags=["documents"], dependencies=[Depends(require_api_key)])
 
 
 @router.post("/upload")

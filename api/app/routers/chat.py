@@ -4,12 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.auth import require_api_key
 from app.db.base import get_session
 from app.db.repositories import ChatRepository
 from app.rag.retriever import Retriever
 from app.rag.prompt import build_messages
 
-router = APIRouter(prefix="/chat", tags=["chat"])
+router = APIRouter(prefix="/chat", tags=["chat"], dependencies=[Depends(require_api_key)])
 
 
 class ChatRequest(BaseModel):
