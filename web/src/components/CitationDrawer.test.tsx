@@ -43,4 +43,20 @@ describe("CitationDrawer", () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it("closes on Escape", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const citation: CitationData = { filename: "g.pdf", chunkId: "c1", text: "t", score: 0.9 };
+    render(<CitationDrawer citation={citation} onClose={onClose} />);
+    await user.keyboard("{Escape}");
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("is a labelled modal dialog with a backdrop", () => {
+    const citation: CitationData = { filename: "g.pdf", chunkId: "c1", text: "t", score: 0.9 };
+    const { container } = render(<CitationDrawer citation={citation} onClose={() => {}} />);
+    expect(screen.getByRole("dialog", { name: /source citation/i })).toBeInTheDocument();
+    expect(container.querySelector(".drawer-backdrop")).toBeInTheDocument();
+  });
 });
