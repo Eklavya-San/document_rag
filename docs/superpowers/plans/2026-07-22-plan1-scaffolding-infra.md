@@ -380,39 +380,65 @@ git commit -m "feat: FastAPI app factory and /health endpoint"
 - Create: `api/app/db/base.py`
 - Create: `api/app/db/models.py`
 - Create: `api/tests/test_db.py`
+- Create: `api/pytest.ini`
+- Modify: `api/tests/conftest.py` (add sqlite test-DSN so `asyncpg` is never imported on the host)
 
 **Interfaces:**
 - Consumes: `Settings.postgres_dsn` from Task 2.
 - Produces: `Base` (DeclarativeBase), `async_engine`, `get_session()` async generator, and ORM models `Document`, `ChatSession`, `ChatMessage`. Later plans use `Document` (ingestion) and `ChatSession`/`ChatMessage` (chat history).
 
-- [ ] **Step 1: Write the failing test**
+**Test environment note (important):** Production uses `postgresql+asyncpg://` and runs in the Python 3.11 Docker container, where `asyncpg==0.29.0` installs cleanly. Unit tests run on the host (Python 3.14, where `asyncpg` does NOT build). To keep unit tests working without `asyncpg`, `conftest.py` sets `POSTGRES_DSN` to a sqlite file **before any app import**, so the module-level engine in `base.py` and the app lifespan both bind to sqlite and the `asyncpg` driver is never imported. The corrected test below creates its own sqlite engine bound to the real `Base`/`Document` (no `importlib.reload` — reloading breaks the model→`Base` binding).
+
+- [ ] **Step 1: Add test config and write the failing test**
+
+`api/pytest.ini`:
+```ini
+[pytest]
+asyncio_mode = auto
+```
+
+Modify `api/tests/conftest.py` to (replaces the Task 2 version):
+```python
+import os
+import sys
+from pathlib import Path
+
+import pytest
+
+# Unit tests run against sqlite so the asyncpg driver is never imported
+# (asyncpg 0.29.0 does not build on Python 3.14; prod runs in 3.11 Docker).
+os.environ.setdefault("POSTGRES_DSN", "sqlite+aiosqlite:////tmp/rag_test.db")
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.config import get_settings  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _clear_settings_cache():
+    get_settings.cache_clear()
+    yield
+```
 
 `api/tests/test_db.py`:
 ```python
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.base import Base, get_session
-from app.db.models import Document
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from app.db.base import Base
+from app.db.models import Document, ChatSession, ChatMessage
 
 
 @pytest.fixture
-async def session(monkeypatch):
-    # Force an in-memory sqlite DSN for unit tests
-    monkeypatch.setenv("POSTGRES_DSN", "sqlite+aiosqlite:///:memory:")
-    # bust the lru_cache so Settings picks up the new DSN
-    from app.config import get_settings
-    get_settings.cache_clear()
-    # re-import engine with new settings
-    import importlib
-    import app.db.base as base
-    importlib.reload(base)
-    async with base.get_session() as s:
-        async with base.engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+async def session():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    async with factory() as s:
         yield s
+    await engine.dispose()
 
 
-@pytest.mark.asyncio
 async def test_can_insert_and_read_document(session: AsyncSession):
     doc = Document(filename="manual.pdf", status="pending")
     session.add(doc)
@@ -421,11 +447,27 @@ async def test_can_insert_and_read_document(session: AsyncSession):
     assert doc.id is not None
     assert doc.status == "pending"
     assert doc.chunk_count == 0
+
+
+async def test_chat_session_has_messages_relationship(session: AsyncSession):
+    cs = ChatSession(title="t")
+    msg = ChatMessage(role="user", content="hi")
+    cs.messages.append(msg)
+    session.add(cs)
+    await session.commit()
+    await session.refresh(cs)
+    assert cs.id is not None
+    assert cs.messages[0].role == "user"
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Install test deps and run test to verify it fails**
 
-Run: `cd api && python -m pytest tests/test_db.py -v`
+Install (host venv; do NOT install `asyncpg` — tests use sqlite):
+```
+cd api && . .venv/bin/activate
+pip install SQLAlchemy==2.0.30 aiosqlite==0.20.0 pytest-asyncio==0.23.7
+```
+Run: `python -m pytest tests/test_db.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'app.db'`
 
 - [ ] **Step 3: Write minimal implementation**
