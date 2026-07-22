@@ -1,12 +1,21 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.config import get_settings
+from app.db.base import Base, async_engine
 from app.ollama.client import OllamaClient
 from app.routers import health
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="Manual RAG Chatbot")
+    app = FastAPI(title="Manual RAG Chatbot", lifespan=_lifespan)
     app.state.settings = settings
     app.state.ollama = OllamaClient(settings)
 
