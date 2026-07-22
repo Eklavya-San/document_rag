@@ -23,4 +23,14 @@ describe("Chat", () => {
     expect(await screen.findByText("Hello")).toBeInTheDocument();
     expect(await screen.findByText(/m\.pdf.*p\.3/)).toBeInTheDocument();
   });
+
+  it("reveals the source snippet when the chip is clicked", async () => {
+    const user = userEvent.setup();
+    render(<Chat />);
+    await user.type(screen.getByPlaceholderText("Ask about the manuals…"), "how to calibrate?");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    const chip = await screen.findByText(/m\.pdf.*p\.3/);
+    await user.click(chip);
+    expect(await screen.findByText("calibrate the sensor")).toBeInTheDocument();
+  });
 });

@@ -1,8 +1,7 @@
 import { useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { streamChat } from "./sse";
-import { fetchSessionMessages } from "./api";
-import { Source, StoredMessage } from "./types";
+import { Source } from "./types";
 
 interface Message {
   role: "user" | "assistant";
@@ -14,7 +13,6 @@ interface Message {
 export function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [sessionId, setSessionId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const sessionRef = useRef<number | null>(null);
 
@@ -29,7 +27,7 @@ export function Chat() {
       question,
       sessionRef.current,
       (e) => {
-        if (e.type === "session") { sessionRef.current = e.session_id; setSessionId(e.session_id); }
+        if (e.type === "session") { sessionRef.current = e.session_id; }
         else if (e.type === "token") {
           setMessages((m) => {
             const copy = [...m];
