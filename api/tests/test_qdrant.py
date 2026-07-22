@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from app.config import Settings
 from app.qdrant.client import QdrantStore
 
@@ -52,3 +52,26 @@ async def test_delete_by_doc_uses_filter():
     sel = kwargs["points_selector"]
     assert sel.must[0].key == "doc_id"
     assert sel.must[0].match.value == 7
+
+
+async def test_search_maps_hits_to_dicts():
+    store = _store()
+    fake_hit = MagicMock()
+    fake_hit.score = 0.91
+    fake_hit.payload = {"text": "calibrate", "doc_id": 1, "filename": "m.pdf", "page": 3}
+    with patch.object(store, "_client") as mock_client:
+        mock_client.search = AsyncMock(return_value=[fake_hit])
+        results = await store.search([0.1, 0.2], top_k=5)
+    mock_client.search.assert_awaited_once()
+    _, kwargs = mock_client.search.call_args
+    assert kwargs["collection_name"] == "manuals"
+    assert kwargs["limit"] == 5
+    assert results == [{"text": "calibrate", "doc_id": 1, "filename": "m.pdf", "page": 3, "score": 0.91}]
+
+
+async def test_close_closes_underlying_client():
+    store = _store()
+    with patch.object(store, "_client") as mock_client:
+        mock_client.close = AsyncMock()
+        await store.close()
+    mock_client.close.assert_awaited_once()

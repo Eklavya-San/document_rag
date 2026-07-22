@@ -24,6 +24,7 @@ async def _lifespan(app: FastAPI):
 
     await async_engine.dispose()
     await app.state.ollama.close()
+    await app.state.qdrant.close()
 
 
 def create_app() -> FastAPI:

@@ -36,3 +36,23 @@ class QdrantStore:
                 must=[qm.FieldCondition(key="doc_id", match=qm.MatchValue(value=doc_id))]
             ),
         )
+
+    async def search(self, query_vector: list[float], top_k: int) -> list[dict]:
+        results = await self._client.search(
+            collection_name=COLLECTION,
+            query_vector=query_vector,
+            limit=top_k,
+        )
+        return [
+            {
+                "text": r.payload.get("text", ""),
+                "doc_id": r.payload.get("doc_id"),
+                "filename": r.payload.get("filename", ""),
+                "page": r.payload.get("page"),
+                "score": r.score,
+            }
+            for r in results
+        ]
+
+    async def close(self) -> None:
+        await self._client.close()
