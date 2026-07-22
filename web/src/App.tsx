@@ -7,15 +7,16 @@ import { Documents } from "./Documents";
 
 export function App() {
   const [tab, setTab] = useState<"chat" | "documents">("chat");
+  const [chatKey, setChatKey] = useState(0);
 
   return (
     <ThemeProvider>
       <div className="app-layout">
         <Header activeTab={tab} />
         <div className="app-body">
-          <Sidebar activeTab={tab} setTab={setTab} />
+          <Sidebar activeTab={tab} setTab={setTab} onNewChat={() => setChatKey((k) => k + 1)} />
           <main className="main-content">
-            {tab === "chat" ? <Chat /> : <Documents />}
+            {tab === "chat" ? <Chat key={chatKey} /> : <Documents />}
           </main>
         </div>
       </div>
