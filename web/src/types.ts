@@ -19,3 +19,9 @@ export interface StoredMessage {
   content: string;
   sources: Source[];
 }
+
+export interface HealthResponse {
+  status: string;
+  config: Record<string, unknown>;
+  dependencies: { ollama: string; qdrant: string };
+}

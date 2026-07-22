@@ -1,4 +1,4 @@
-import { DocumentRow, StoredMessage } from "./types";
+import { DocumentRow, StoredMessage, HealthResponse } from "./types";
 
 async function jsonOrThrow<T>(resp: Response): Promise<T> {
   if (!resp.ok) {
@@ -29,6 +29,11 @@ export async function listDocuments(): Promise<DocumentRow[]> {
 export async function deleteDocument(id: number): Promise<void> {
   const resp = await fetch(`/documents/${id}`, { method: "DELETE" });
   if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`.trim());
+}
+
+export async function fetchHealth(): Promise<HealthResponse> {
+  const resp = await fetch("/health");
+  return jsonOrThrow<HealthResponse>(resp);
 }
 
 export async function fetchSessionMessages(sessionId: number): Promise<StoredMessage[]> {

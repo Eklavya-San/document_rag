@@ -1,9 +1,29 @@
-import React from 'react';
+import { useEffect, useState } from 'react';
 import { useTheme } from './ThemeContext';
 import { SunIcon, MoonIcon } from './Icons';
+import { fetchHealth } from '../api';
 
 export function Header({ activeTab }: { activeTab: 'chat' | 'documents' }) {
   const { theme, toggleTheme } = useTheme();
+  const [ollama, setOllama] = useState<string>('ok');
+  const [qdrant, setQdrant] = useState<string>('ok');
+
+  useEffect(() => {
+    let alive = true;
+    const poll = async () => {
+      try {
+        const h = await fetchHealth();
+        if (!alive) return;
+        setOllama(h.dependencies.ollama);
+        setQdrant(h.dependencies.qdrant);
+      } catch {
+        if (alive) { setOllama('unreachable'); setQdrant('unreachable'); }
+      }
+    };
+    poll();
+    const id = setInterval(poll, 10000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
 
   return (
     <header className="app-header">
@@ -15,10 +35,10 @@ export function Header({ activeTab }: { activeTab: 'chat' | 'documents' }) {
       </div>
       <div className="header-right">
         <div className="status-pill">
-          <span className="dot dot-success"></span> Qdrant DB
+          <span className={`dot ${qdrant === 'ok' ? 'dot-success' : 'dot-error'}`}></span> Qdrant DB
         </div>
         <div className="status-pill">
-          <span className="dot dot-success"></span> Ollama LLM
+          <span className={`dot ${ollama === 'ok' ? 'dot-success' : 'dot-error'}`}></span> Ollama LLM
         </div>
         <button
           className="theme-toggle-btn"

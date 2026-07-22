@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { uploadDocument, listDocuments, deleteDocument, fetchSessionMessages } from "./api";
+import { uploadDocument, listDocuments, deleteDocument, fetchSessionMessages, fetchHealth } from "./api";
 
 describe("api helpers", () => {
   beforeEach(() => { (globalThis as any).fetch = vi.fn(); });
@@ -39,6 +39,13 @@ describe("api helpers", () => {
   it("throws on a non-ok response", async () => {
     (globalThis.fetch as any).mockResolvedValue({ ok: false, status: 503, statusText: "AI service unavailable" });
     await expect(listDocuments()).rejects.toThrow("503");
+  });
+
+  it("fetchHealth GETs /health", async () => {
+    (globalThis.fetch as any).mockResolvedValue({ ok: true, json: async () => ({ status: "ok", config: {}, dependencies: { ollama: "ok", qdrant: "ok" } }) });
+    const h = await fetchHealth();
+    expect(h.dependencies.ollama).toBe("ok");
+    expect((globalThis.fetch as any).mock.calls[0][0]).toBe("/health");
   });
 
   it("surfaces the backend detail body in the thrown error", async () => {
