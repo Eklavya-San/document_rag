@@ -23,12 +23,11 @@ class DocumentRepository:
         return list(result.scalars().all())
 
     async def set_status(self, doc_id: int, status: str, **fields) -> None:
-        doc = await self.get(doc_id)
-        if doc is None:
-            return
-        doc.status = status
-        for k, v in fields.items():
-            setattr(doc, k, v)
+        from sqlalchemy import update
+        values = {"status": status, **fields}
+        await self.session.execute(
+            update(Document).where(Document.id == doc_id).values(**values)
+        )
         await self.session.commit()
 
     async def delete(self, doc_id: int) -> None:
