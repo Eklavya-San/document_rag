@@ -171,4 +171,50 @@ async def test_language_detected_into_payload(monkeypatch):
     await session.close(); await engine.dispose()
 
 
+async def test_embed_failure_marks_failed_and_cleans_qdrant(monkeypatch):
+    from app.ingestion.parsers import Page
+    import app.ingestion.orchestrator as orch
+    monkeypatch.setattr(orch, "parse_file", lambda p, f: [Page(number=1, text="x" * 200)])
+    repo, doc, engine, session = await _repo_with_one_doc("m.pdf")
+    embedder = AsyncMock(); embedder.embed = AsyncMock(side_effect=RuntimeError("ollama embed down"))
+    qdrant = AsyncMock(); qdrant.upsert = AsyncMock(); qdrant.delete_by_doc = AsyncMock()
+    await ingest_document(doc.id, "/dev/null", "m.pdf", repo, embedder, qdrant, Settings())
+    fetched = await repo.get(doc.id)
+    assert fetched.status == "failed"
+    qdrant.delete_by_doc.assert_awaited_with(doc.id)
+    await session.close(); await engine.dispose()
+
+
+async def test_no_text_extracted_marks_failed(monkeypatch):
+    from app.ingestion.parsers import Page
+    import app.ingestion.orchestrator as orch
+    monkeypatch.setattr(orch, "parse_file", lambda p, f: [Page(number=1, text="   ")])
+    repo, doc, engine, session = await _repo_with_one_doc("m.pdf")
+    embedder = AsyncMock(); qdrant = AsyncMock()
+    await ingest_document(doc.id, "/dev/null", "m.pdf", repo, embedder, qdrant, Settings())
+    fetched = await repo.get(doc.id)
+    assert fetched.status == "failed"
+    assert "No text extracted" in (fetched.error or "")
+    await session.close(); await engine.dispose()
+
+
+async def test_embed_batch32_boundary(monkeypatch):
+    from app.ingestion.parsers import Page
+    import app.ingestion.orchestrator as orch
+    monkeypatch.setattr(orch, "EMBED_BATCH", 32)
+    monkeypatch.setattr(orch, "parse_file", lambda p, f: [Page(number=1, text="chunk " * 5000)])
+    repo, doc, engine, session = await _repo_with_one_doc("m.pdf")
+    embedder = AsyncMock()
+    embedder.embed = AsyncMock(side_effect=lambda texts: [[0.1] for _ in texts])
+    qdrant = AsyncMock(); qdrant.upsert = AsyncMock(); qdrant.delete_by_doc = AsyncMock()
+    await ingest_document(doc.id, "/dev/null", "m.pdf", repo, embedder, qdrant, Settings(chunk_size_tokens=64, chunk_overlap_tokens=8))
+    fetched = await repo.get(doc.id)
+    assert fetched.status == "done"
+    total = sum(len(c.kwargs["points"]) for c in qdrant.upsert.call_args_list)
+    assert total == fetched.chunk_count
+    assert qdrant.upsert.await_count >= 1
+    await session.close(); await engine.dispose()
+
+
+
 
