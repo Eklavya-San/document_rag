@@ -46,3 +46,14 @@ def test_chunk_carries_section():
     chunks = chunk_pages(pages, 200, 20)
     assert chunks and chunks[0].section == "Safety"
 
+
+def test_token_accurate_chunking_bounds_by_tokens():
+    from app.ingestion.chunker import chunk_pages
+    from app.ingestion.parsers import Page
+    text = "calibrate sensor " * 1000
+    chunks = chunk_pages([Page(number=1, text=text)], 100, 10, token_accurate=True)
+    import tiktoken
+    enc = tiktoken.get_encoding("cl100k_base")
+    assert all(len(enc.encode(c.text)) <= 100 for c in chunks)
+
+

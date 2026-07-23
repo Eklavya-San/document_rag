@@ -23,9 +23,13 @@ async def ingest_document(
         await repo.set_status(doc_id, "parsing")
         pages = await asyncio.to_thread(parse_file, file_path, filename)
         parser_used = _parser_used(filename)
-        size_chars = settings.chunk_size_tokens * 4
-        overlap_chars = settings.chunk_overlap_tokens * 4
-        chunks = chunk_pages(pages, size_chars, overlap_chars)
+        if settings.token_accurate_chunking:
+            chunks = chunk_pages(pages, settings.chunk_size_tokens, settings.chunk_overlap_tokens, token_accurate=True)
+        else:
+            size_chars = settings.chunk_size_tokens * 4
+            overlap_chars = settings.chunk_overlap_tokens * 4
+            chunks = chunk_pages(pages, size_chars, overlap_chars)
+
         if not chunks:
             await repo.set_status(doc_id, "failed", parser_used=parser_used, error="No text extracted")
             return
