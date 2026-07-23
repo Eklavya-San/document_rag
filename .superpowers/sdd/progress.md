@@ -71,3 +71,15 @@ Task 13: complete (commits 34e9022..8b8c4a6, review clean - advanced RAG feature
 
 ## RAG Quality & Advanced-RAG — Complete
 
+## Evaluation & Observability
+Task 1: complete (commits 8b8c4a6..7136d0a, review clean - golden QA dataset and eval runner)
+Task 2: complete (commits 7136d0a..78b680d, review clean - RAGAS-style LLM-judge metrics persisted to eval_runs)
+Task 3: complete (commits 78b680d..7fcd015, review clean - per-stage latency timing and /metrics endpoint)
+Task 4: complete (commits 7fcd015..12ebffd, review clean - token tracking on ChatMessage)
+Task 5: complete (commits 12ebffd..207aa51, review clean - user feedback endpoint and UI)
+Task 6: complete (commits 207aa51..3fa0cea, review clean - citation-accuracy verification)
+Task 7: complete (commits 3fa0cea..9437e8a, review clean - hard-negative mining hook from eval results)
+
+## Evaluation & Observability — Complete
+
+
