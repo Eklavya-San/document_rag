@@ -23,7 +23,9 @@ class Settings(BaseSettings):
     small_model_max_words: int = 8
     grounding_check_enabled: bool = False
     embed_cache_enabled: bool = False
+    cost_tracking_enabled: bool = False
     eval_qa_path: str = "app/eval/qa_pairs.json"
+
 
 
     embed_cache_size: int = 1024

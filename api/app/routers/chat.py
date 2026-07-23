@@ -115,9 +115,16 @@ async def chat(req: ChatRequest, request: Request):
                     grounded = await check_grounding(answer, sources, ollama)
                 except Exception:
                     grounded = None
+            tokens = None
+            if settings.cost_tracking_enabled:
+                try:
+                    import tiktoken
+                    tokens = len(tiktoken.get_encoding("cl100k_base").encode(answer))
+                except Exception:
+                    tokens = None
             try:
                 async with request.app.state.session_factory() as s:
-                    await ChatRepository(s).add_message(session_id, "assistant", answer, sources_json=source_dicts, grounded=grounded)
+                    await ChatRepository(s).add_message(session_id, "assistant", answer, sources_json=source_dicts, grounded=grounded, tokens=tokens)
             except Exception:
                 logging.getLogger("uvicorn.error").exception("failed to persist assistant message")
             if grounded is False:
@@ -142,9 +149,10 @@ async def list_session_messages(
         raise HTTPException(status_code=404, detail="session not found")
     msgs = await repo.list_messages(session_id, limit=limit, offset=offset)
     return [
-        {"role": m.role, "content": m.content, "sources": m.sources_json or []}
+        {"role": m.role, "content": m.content, "sources": m.sources_json or [], "tokens": m.tokens}
         for m in msgs
     ]
+
 
 
 def _sse(obj) -> str:

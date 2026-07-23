@@ -249,3 +249,20 @@ def test_simple_question_uses_small_model(monkeypatch):
     assert pick_model("explain why the sensor fails and compare the calibration steps", s) == s.ollama_llm_model
 
 
+def test_tokens_persisted_when_cost_tracking_on(app_with_fakes, monkeypatch):
+    from app.config import get_settings
+    monkeypatch.setenv("COST_TRACKING_ENABLED", "true")
+    get_settings.cache_clear()
+    app, factory = app_with_fakes
+    app.state.settings = get_settings()
+    app.state.ollama = FakeOllama()
+
+    app.state.qdrant = FakeQdrant()
+    client = _client(app)
+    r = client.post("/chat", json={"question": "how to calibrate?"})
+    session_id = _parse_sse(r.text)[0]["session_id"]
+    hist = client.get(f"/chat/sessions/{session_id}/messages").json()
+    assert hist[1]["tokens"] is not None and hist[1]["tokens"] > 0
+
+
+

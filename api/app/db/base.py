@@ -30,4 +30,9 @@ def _apply_startup_indexes(conn) -> None:
         conn.execute(text("ALTER TABLE chat_messages ADD COLUMN grounded BOOLEAN"))
     except Exception:
         pass
+    try:
+        conn.execute(text("ALTER TABLE chat_messages ADD COLUMN tokens INTEGER"))
+    except Exception:
+        pass
+
 
