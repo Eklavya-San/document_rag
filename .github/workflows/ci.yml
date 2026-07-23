@@ -75,6 +75,9 @@ jobs:
 
       - name: Build and smoke-start compose stack
         run: |
+          # CI has no .env; create an empty one so env_file doesn't 404.
+          # App falls back to code defaults; compose :-defaults fill the rest.
+          touch .env
           docker compose build
           docker compose up --wait --quiet-pull postgres qdrant api
           docker compose ps
