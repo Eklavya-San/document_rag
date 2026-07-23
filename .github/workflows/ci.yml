@@ -76,7 +76,7 @@ jobs:
       - name: Build and smoke-start compose stack
         run: |
           docker compose build
-          docker compose up --wait --quiet-pull postgres qdrant ollama api
+          docker compose up --wait --quiet-pull postgres qdrant api
           docker compose ps
           curl -sf http://localhost:8000/health
       - name: Tear down
