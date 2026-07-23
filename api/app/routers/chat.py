@@ -105,11 +105,21 @@ async def chat(req: ChatRequest, request: Request):
             logging.getLogger("uvicorn.error").exception("chat stream failed")
         finally:
             answer = "".join(collected)
+            grounded = None
+            if settings.grounding_check_enabled:
+                from app.rag.grounding import check_grounding
+                try:
+                    grounded = await check_grounding(answer, sources, ollama)
+                except Exception:
+                    grounded = None
             try:
                 async with request.app.state.session_factory() as s:
-                    await ChatRepository(s).add_message(session_id, "assistant", answer, sources_json=source_dicts)
+                    await ChatRepository(s).add_message(session_id, "assistant", answer, sources_json=source_dicts, grounded=grounded)
             except Exception:
                 logging.getLogger("uvicorn.error").exception("failed to persist assistant message")
+            if grounded is False:
+                yield _sse({"type": "token", "content": "\n\n_(note: this answer could not be fully verified against the source documents.)_"})
+
         yield _sse({"type": "sources", "sources": source_dicts})
         yield _sse({"type": "done"})
 

@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
-from sqlalchemy import String, Integer, Text, ForeignKey, DateTime, JSON
+from sqlalchemy import String, Integer, Text, ForeignKey, DateTime, JSON, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
+
 
 
 class Document(Base):
@@ -33,5 +34,7 @@ class ChatMessage(Base):
     role: Mapped[str] = mapped_column(String(16))
     content: Mapped[str] = mapped_column(Text)
     sources_json: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    grounded: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
     session: Mapped["ChatSession"] = relationship(back_populates="messages")

@@ -24,5 +24,10 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 
 
 def _apply_startup_indexes(conn) -> None:
-    """Idempotent indexes for existing DBs (model index=True only applies to fresh DBs)."""
+    """Idempotent indexes and column migrations for existing DBs."""
     conn.execute(text("CREATE INDEX IF NOT EXISTS ix_chat_messages_session_id ON chat_messages (session_id)"))
+    try:
+        conn.execute(text("ALTER TABLE chat_messages ADD COLUMN grounded BOOLEAN"))
+    except Exception:
+        pass
+

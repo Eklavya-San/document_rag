@@ -53,11 +53,12 @@ class ChatRepository:
         result = await self.session.execute(select(ChatSession).where(ChatSession.id == session_id))
         return result.scalar_one_or_none()
 
-    async def add_message(self, session_id: int, role: str, content: str, sources_json=None) -> ChatMessage:
-        msg = ChatMessage(session_id=session_id, role=role, content=content, sources_json=sources_json)
+    async def add_message(self, session_id: int, role: str, content: str, sources_json=None, grounded=None) -> ChatMessage:
+        msg = ChatMessage(session_id=session_id, role=role, content=content, sources_json=sources_json, grounded=grounded)
         self.session.add(msg)
         await self.session.commit()
         await self.session.refresh(msg)
+
         return msg
 
     async def list_messages(self, session_id: int, limit: int, offset: int = 0) -> list[ChatMessage]:
