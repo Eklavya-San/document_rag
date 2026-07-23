@@ -1,0 +1,34 @@
+[
+  {
+    "id": "cal-1",
+    "question": "How do I calibrate the sensor?",
+    "expected_answer": "calibrate the sensor",
+    "expected_doc": "manual.pdf",
+    "expected_page": 3,
+    "tags": ["procedure"]
+  },
+  {
+    "id": "neg-1",
+    "question": "Which parts must NOT be lubricated?",
+    "expected_answer": "do not lubricate the seal",
+    "expected_doc": "manual.pdf",
+    "expected_page": 7,
+    "tags": ["negation"]
+  },
+  {
+    "id": "ood-1",
+    "question": "What is the capital of France?",
+    "expected_answer": "I couldn't find this in the manuals.",
+    "expected_doc": null,
+    "expected_page": null,
+    "tags": ["out-of-distribution"]
+  },
+  {
+    "id": "multi-1",
+    "question": "Compare the voltage for stage 1 and stage 2 and tell me which is higher.",
+    "expected_answer": "stage 2 is higher",
+    "expected_doc": "manual.pdf",
+    "expected_page": 5,
+    "tags": ["multi-hop"]
+  }
+]
