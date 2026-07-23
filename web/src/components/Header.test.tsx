@@ -11,7 +11,9 @@ function renderWithTheme(ui: React.ReactElement) {
 }
 
 describe("Header", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it("shows Ollama as unreachable when /health reports it down", async () => {
     (fetchHealth as any).mockResolvedValue({ status: "ok", config: {}, dependencies: { ollama: "unreachable", qdrant: "ok" } });
