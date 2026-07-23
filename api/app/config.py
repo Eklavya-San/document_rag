@@ -18,9 +18,12 @@ class Settings(BaseSettings):
     query_expansion_enabled: bool = False
     hyde_enabled: bool = False
     num_subqueries: int = 3
+    embed_cache_enabled: bool = False
+    embed_cache_size: int = 1024
     context_dedup_enabled: bool = False
     dedup_enabled: bool = False
     token_accurate_chunking: bool = False
+
 
     chunk_size_tokens: int = 512
 

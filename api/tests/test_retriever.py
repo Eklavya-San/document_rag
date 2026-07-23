@@ -147,6 +147,25 @@ async def test_context_dedup_drops_duplicate_text():
     assert len(sources) == 1
 
 
+async def test_query_embed_cache_hits_once_for_same_question():
+    from app.rag.retriever import Retriever
+    from app.config import Settings
+    count = {"n": 0}
+    class Emb:
+        async def embed(self, texts):
+            count["n"] += 1
+            return [[0.1] for _ in texts]
+    class Q:
+        async def search(self, vector, top_k, query_filter=None):
+            return [{"id":"a","text":"t","doc_id":1,"filename":"m.pdf","page":1,"score":0.9}]
+    settings = Settings(embed_cache_enabled=True, retrieval_top_k=5)
+    r = Retriever(Emb(), Q(), settings)
+    await r.retrieve("same question")
+    await r.retrieve("same question")
+    assert count["n"] == 1
+
+
+
 
 
 

@@ -11,8 +11,16 @@ from app.ingestion.chunker import chunk_pages
 EMBED_BATCH = 32
 
 
+_EMBED_CACHE: dict[str, list[float]] = {}
+
+
+def _embed_key(text: str) -> str:
+    return hashlib.sha256(" ".join(text.split()).encode("utf-8")).hexdigest()
+
+
 def _chunk_hash(text: str) -> str:
     return hashlib.sha256(" ".join(text.split()).encode("utf-8")).hexdigest()
+
 
 
 def _detect_language(text: str) -> str:
@@ -65,8 +73,26 @@ async def ingest_document(
         await repo.set_status(doc_id, "embedding", parser_used=parser_used, chunk_count=len(chunks))
         for i in range(0, len(chunks), EMBED_BATCH):
             batch = chunks[i:i + EMBED_BATCH]
-            vectors = await embedder.embed([c.text for c in batch])
+            resolved: list[list[float] | None] = []
+            to_embed = []
+            for c in batch:
+                k = _embed_key(c.text) if settings.embed_cache_enabled else None
+                if k and k in _EMBED_CACHE:
+                    resolved.append(_EMBED_CACHE[k])
+                else:
+                    resolved.append(None)
+                    to_embed.append(c.text)
+            new_vectors = await embedder.embed(to_embed) if to_embed else []
+            ni = 0
+            for idx, c in enumerate(batch):
+                if resolved[idx] is None:
+                    resolved[idx] = new_vectors[ni]
+                    ni += 1
+                    if settings.embed_cache_enabled:
+                        _EMBED_CACHE[_embed_key(c.text)] = resolved[idx]
+            vectors: list[list[float]] = [v for v in resolved if v is not None]
             sparse = await _sparse_batch(embedder, [c.text for c in batch], settings)
+
             points = [
                 {
                     "id": str(uuid.uuid4()),

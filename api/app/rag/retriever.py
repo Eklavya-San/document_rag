@@ -37,6 +37,22 @@ class Retriever:
         self.qdrant = qdrant
         self.settings = settings
         self.judge = judge
+        self._embed_cache: dict[str, list[float]] = {}
+        self._embed_order: list[str] = []
+
+    async def _embed_cached(self, question: str) -> list[float]:
+        key = " ".join(question.lower().split())
+        if self.settings.embed_cache_enabled and key in self._embed_cache:
+            return self._embed_cache[key]
+        vectors = await self.embedder.embed([question])
+        v = vectors[0]
+        if self.settings.embed_cache_enabled:
+            self._embed_cache[key] = v
+            self._embed_order.append(key)
+            if len(self._embed_order) > self.settings.embed_cache_size:
+                old = self._embed_order.pop(0)
+                self._embed_cache.pop(old, None)
+        return v
 
     async def retrieve(self, question: str, query_filter=None) -> list[Source]:
         if self.settings.hyde_enabled and self.judge is not None:
@@ -61,8 +77,8 @@ class Retriever:
 
 
     async def _retrieve_one(self, question: str, query_filter=None) -> list[Source]:
-        vectors = await self.embedder.embed([question])
-        query_vector = vectors[0]
+        query_vector = await self._embed_cached(question)
+
         if self.settings.hybrid_enabled:
             sparse_vecs = await self._sparse([question])
             kwargs = {"filter": query_filter} if query_filter is not None else {}
