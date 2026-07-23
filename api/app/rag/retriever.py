@@ -1,3 +1,4 @@
+import hashlib
 from dataclasses import dataclass
 from app.config import Settings
 from app.rag.embed_sparse import sparse_embed
@@ -13,6 +14,21 @@ class Source:
     chunk_id: str
     section: str = ""
 
+
+def _norm(text: str) -> str:
+    return " ".join(text.lower().split())
+
+
+def _dedup_sources(sources: list[Source]) -> list[Source]:
+    seen: set[str] = set()
+    out: list[Source] = []
+    for s in sources:
+        h = hashlib.sha256(_norm(s.text).encode("utf-8")).hexdigest()
+        if h in seen:
+            continue
+        seen.add(h)
+        out.append(s)
+    return out
 
 
 class Retriever:
@@ -38,7 +54,11 @@ class Retriever:
             sources = await self._retrieve_one(q, query_filter)
             for s in sources:
                 merged.setdefault(s.chunk_id, s)
-        return list(merged.values())
+        merged_list = list(merged.values())
+        if self.settings.context_dedup_enabled:
+            merged_list = _dedup_sources(merged_list)
+        return merged_list
+
 
     async def _retrieve_one(self, question: str, query_filter=None) -> list[Source]:
         vectors = await self.embedder.embed([question])
@@ -69,7 +89,10 @@ class Retriever:
 
             for h in hits_sorted
         ]
+        if self.settings.context_dedup_enabled:
+            sources = _dedup_sources(sources)
         if self.settings.rerank_enabled and self.judge is not None:
+
             from app.rag.rerank import rerank
             sources = await rerank(question, sources, self.judge, self.settings.rerank_top_k)
         elif self.settings.rerank_enabled:

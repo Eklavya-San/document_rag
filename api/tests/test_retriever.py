@@ -129,5 +129,24 @@ async def test_multi_query_merges_dedup_by_chunk_id():
     assert len(seen) == 3
 
 
+async def test_context_dedup_drops_duplicate_text():
+    from app.rag.retriever import Retriever
+    from app.config import Settings
+
+    class Emb:
+        async def embed(self, texts): return [[0.1]]
+    class Q:
+        async def search(self, vector, top_k, query_filter=None):
+            return [
+                {"id":"a","text":"calibrate the sensor","doc_id":1,"filename":"m.pdf","page":1,"score":0.9},
+                {"id":"b","text":"calibrate the sensor","doc_id":1,"filename":"m.pdf","page":2,"score":0.85},
+            ]
+    settings = Settings(context_dedup_enabled=True, retrieval_top_k=5)
+    r = Retriever(Emb(), Q(), settings)
+    sources = await r.retrieve("q")
+    assert len(sources) == 1
+
+
+
 
 
