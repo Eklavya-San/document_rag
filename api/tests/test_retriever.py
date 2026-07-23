@@ -84,3 +84,20 @@ async def test_hybrid_search_issues_dense_and_sparse():
     assert sources[0].chunk_id == "p1"
 
 
+async def test_rerank_reorders_by_llm_score():
+    from app.rag.retriever import Source
+    from app.rag.rerank import rerank
+
+    class JudgeOllama:
+        async def chat(self, messages):
+            return '{"scores": [0.1, 0.9]}'
+
+    sources = [
+        Source(text="a", doc_id=1, filename="m.pdf", page=1, score=0.95, chunk_id="a"),
+        Source(text="b", doc_id=1, filename="m.pdf", page=2, score=0.80, chunk_id="b"),
+    ]
+    out = await rerank("how to calibrate", sources, JudgeOllama(), top_k=2)
+    assert [s.chunk_id for s in out] == ["b", "a"]
+
+
+

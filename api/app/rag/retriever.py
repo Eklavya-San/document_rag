@@ -14,10 +14,11 @@ class Source:
 
 
 class Retriever:
-    def __init__(self, embedder, qdrant, settings: Settings):
+    def __init__(self, embedder, qdrant, settings: Settings, judge=None):
         self.embedder = embedder
         self.qdrant = qdrant
         self.settings = settings
+        self.judge = judge
 
     async def retrieve(self, question: str, query_filter=None) -> list[Source]:
         vectors = await self.embedder.embed([question])
@@ -46,9 +47,13 @@ class Retriever:
             )
             for h in hits_sorted
         ]
-        if self.settings.rerank_enabled:
+        if self.settings.rerank_enabled and self.judge is not None:
+            from app.rag.rerank import rerank
+            sources = await rerank(question, sources, self.judge, self.settings.rerank_top_k)
+        elif self.settings.rerank_enabled:
             sources = sources[: self.settings.rerank_top_k]
         return sources
+
 
     async def _sparse(self, texts: list[str]) -> list[dict]:
         if hasattr(self.embedder, "embed_sparse"):

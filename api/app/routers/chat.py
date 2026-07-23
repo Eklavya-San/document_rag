@@ -41,7 +41,8 @@ async def chat(req: ChatRequest, request: Request):
     # Retrieval BEFORE committing the user message, so a 503 leaves no orphan.
     ollama = request.app.state.ollama
     qdrant = request.app.state.qdrant
-    retriever = Retriever(ollama, qdrant, settings)
+    retriever = Retriever(ollama, qdrant, settings, judge=ollama)
+
     try:
         sources = await retriever.retrieve(req.question)
     except Exception:

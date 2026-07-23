@@ -47,3 +47,13 @@ class OllamaClient:
                 piece = chunk.get("message", {}).get("content", "")
                 if piece:
                     yield piece
+
+    async def chat(self, messages: list[dict], model: str | None = None) -> str:
+        r = await self._http.post(
+            f"{self._base}/api/chat",
+            json={"model": model or self.settings.ollama_llm_model, "messages": messages, "stream": False},
+            timeout=60.0,
+        )
+        r.raise_for_status()
+        return r.json()["message"]["content"]
+
