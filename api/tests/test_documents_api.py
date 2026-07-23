@@ -131,3 +131,18 @@ def test_documents_pagination(client, monkeypatch):
     page2 = client.get("/documents?limit=2&offset=2").json()
     assert len(page1) == 2 and len(page2) == 1
     assert page1[0]["id"] != page2[0]["id"]
+
+
+def test_upload_strips_path_traversal(client, monkeypatch, tmp_path):
+    import app.routers.documents as docs
+    async def fake_ingest(doc_id, file_path, filename, repo, embedder, qdrant, settings):
+        import os
+        assert os.path.dirname(file_path) == settings.data_dir
+        await repo.set_status(doc_id, "done", chunk_count=1, parser_used="pdf")
+    monkeypatch.setattr(docs, "ingest_document", fake_ingest)
+    files = {"file": ("../../etc/evil.pdf", b"%PDF-1.4 fake", "application/pdf")}
+    r = client.post("/documents/upload", files=files)
+    assert r.status_code == 200
+    assert r.json()["filename"] == "evil.pdf"
+    assert not (tmp_path.parent / "etc").exists()
+
