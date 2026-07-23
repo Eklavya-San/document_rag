@@ -24,15 +24,21 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 
 
 def _apply_startup_indexes(conn) -> None:
-    """Idempotent indexes and column migrations for existing DBs."""
+    """Idempotent indexes and column migrations for existing DBs.
+
+    Each ALTER runs in its own savepoint so a 'column already exists' error
+    on Postgres (which aborts the whole transaction) only rolls back the
+    savepoint, not the outer create_all transaction.
+    """
     conn.execute(text("CREATE INDEX IF NOT EXISTS ix_chat_messages_session_id ON chat_messages (session_id)"))
-    try:
-        conn.execute(text("ALTER TABLE chat_messages ADD COLUMN grounded BOOLEAN"))
-    except Exception:
-        pass
-    try:
-        conn.execute(text("ALTER TABLE chat_messages ADD COLUMN tokens INTEGER"))
-    except Exception:
-        pass
+    for stmt in (
+        "ALTER TABLE chat_messages ADD COLUMN grounded BOOLEAN",
+        "ALTER TABLE chat_messages ADD COLUMN tokens INTEGER",
+    ):
+        try:
+            with conn.begin_nested():
+                conn.execute(text(stmt))
+        except Exception:
+            pass
 
 
