@@ -53,9 +53,12 @@ async def chat(req: ChatRequest, request: Request):
     qdrant = request.app.state.qdrant
     retriever = Retriever(ollama, qdrant, settings, judge=ollama)
 
+    from app.observability import timed
     try:
-        sources = await retriever.retrieve(req.question, query_filter=query_filter)
+        async with timed("retrieval"):
+            sources = await retriever.retrieve(req.question, query_filter=query_filter)
     except Exception:
+
         logging.getLogger("uvicorn.error").exception("chat retrieval failed")
         raise HTTPException(status_code=503, detail="AI service unavailable")
 

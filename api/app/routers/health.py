@@ -20,3 +20,10 @@ async def health(request: Request):
         },
         "dependencies": {"ollama": ollama_status, "qdrant": qdrant_status},
     }
+
+
+@router.get("/metrics")
+async def metrics():
+    from app.observability import metrics_snapshot
+    return metrics_snapshot()
+
