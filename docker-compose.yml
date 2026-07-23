@@ -9,7 +9,6 @@ services:
 
   api:
     build: ./api
-    env_file: .env
     environment:
       - POSTGRES_DSN=postgresql+asyncpg://${POSTGRES_USER:-rag}:${POSTGRES_PASSWORD:-rag}@postgres:5432/${POSTGRES_DB:-rag}
       - QDRANT_URL=http://qdrant:6333
