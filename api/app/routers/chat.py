@@ -149,9 +149,25 @@ async def list_session_messages(
         raise HTTPException(status_code=404, detail="session not found")
     msgs = await repo.list_messages(session_id, limit=limit, offset=offset)
     return [
-        {"role": m.role, "content": m.content, "sources": m.sources_json or [], "tokens": m.tokens}
+        {"id": m.id, "role": m.role, "content": m.content, "sources": m.sources_json or [], "tokens": m.tokens}
         for m in msgs
     ]
+
+
+class FeedbackRequest(BaseModel):
+    rating: int
+    correction: str | None = None
+    clicked_source_ids: list[str] | None = None
+
+
+@router.post("/messages/{message_id}/feedback", status_code=204)
+async def post_feedback(message_id: int, body: FeedbackRequest, session: AsyncSession = Depends(get_session)):
+    if body.rating not in (1, -1):
+        raise HTTPException(status_code=422, detail="rating must be 1 or -1")
+    from app.db.repositories import FeedbackRepository
+    await FeedbackRepository(session).add(message_id, body.rating, body.correction, body.clicked_source_ids)
+    return None
+
 
 
 

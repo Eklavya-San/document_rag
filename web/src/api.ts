@@ -40,3 +40,13 @@ export async function fetchSessionMessages(sessionId: number): Promise<StoredMes
   const resp = await fetch(`/chat/sessions/${sessionId}/messages`);
   return jsonOrThrow<StoredMessage[]>(resp);
 }
+
+export async function sendFeedback(messageId: number, rating: 1 | -1): Promise<void> {
+  const resp = await fetch(`/chat/messages/${messageId}/feedback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rating }),
+  });
+  if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`.trim());
+}
+

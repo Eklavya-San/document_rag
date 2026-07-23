@@ -16,10 +16,12 @@ export interface Source {
 }
 
 export interface StoredMessage {
+  id?: number;
   role: "user" | "assistant";
   content: string;
   sources: Source[];
 }
+
 
 export interface HealthResponse {
   status: string;

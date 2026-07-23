@@ -265,4 +265,16 @@ def test_tokens_persisted_when_cost_tracking_on(app_with_fakes, monkeypatch):
     assert hist[1]["tokens"] is not None and hist[1]["tokens"] > 0
 
 
+def test_feedback_endpoint_persists_rating(app_with_fakes):
+    app, factory = app_with_fakes
+    app.state.ollama = FakeOllama(); app.state.qdrant = FakeQdrant()
+    client = _client(app)
+    r = client.post("/chat", json={"question": "q"})
+    session_id = _parse_sse(r.text)[0]["session_id"]
+    msg_id = client.get(f"/chat/sessions/{session_id}/messages").json()[1]["id"]
+    fr = client.post(f"/chat/messages/{msg_id}/feedback", json={"rating": 1})
+    assert fr.status_code == 204
+
+
+
 

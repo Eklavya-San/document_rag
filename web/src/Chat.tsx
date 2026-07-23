@@ -1,16 +1,18 @@
 import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { streamChat } from "./sse";
-import { fetchSessionMessages } from "./api";
+import { fetchSessionMessages, sendFeedback } from "./api";
 import { Source } from "./types";
 import { CitationDrawer, CitationData } from "./components/CitationDrawer";
 
 interface Message {
+  id?: number;
   role: "user" | "assistant";
   content: string;
   sources: Source[];
   streaming?: boolean;
 }
+
 
 const PROMPT_SUGGESTIONS = [
   "What are the key findings in the uploaded documents?",
@@ -42,12 +44,14 @@ export function Chat() {
       .then((msgs) => {
         setMessages(
           msgs.map((m) => ({
+            id: m.id,
             role: m.role,
             content: m.content,
             sources: m.sources ?? [],
             streaming: false,
           })),
         );
+
       })
       .catch(() => {});
   }, []);
@@ -183,7 +187,14 @@ export function Chat() {
                     ))}
                   </div>
                 )}
+                {m.role === "assistant" && m.id != null && (
+                  <div className="feedback-row">
+                    <button className="fb-btn" aria-label="Helpful" onClick={() => sendFeedback(m.id!, 1).catch(() => {})}>👍</button>
+                    <button className="fb-btn" aria-label="Not helpful" onClick={() => sendFeedback(m.id!, -1).catch(() => {})}>👎</button>
+                  </div>
+                )}
               </div>
+
             ))
           )}
         </div>

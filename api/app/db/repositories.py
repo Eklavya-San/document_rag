@@ -73,3 +73,17 @@ class ChatRepository:
         )
         result = await self.session.execute(stmt)
         return list(reversed(result.scalars().all()))
+
+
+class FeedbackRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def add(self, message_id: int, rating: int, correction: str | None = None, clicked_source_ids: list | None = None):
+        from app.db.models import Feedback
+        fb = Feedback(message_id=message_id, rating=rating, correction=correction, clicked_source_ids=clicked_source_ids)
+        self.session.add(fb)
+        await self.session.commit()
+        await self.session.refresh(fb)
+        return fb
+
