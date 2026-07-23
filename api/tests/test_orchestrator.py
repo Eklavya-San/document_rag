@@ -125,3 +125,20 @@ async def test_multi_batch_upserts_per_batch(monkeypatch):
     fetched = await repo.get(doc.id)
     assert fetched.status == "done" and fetched.chunk_count == 5
     await session.close(); await engine.dispose()
+
+
+async def test_hybrid_ingest_stores_sparse(monkeypatch):
+    import app.ingestion.orchestrator as orch
+    from app.ingestion.parsers import Page
+    monkeypatch.setattr(orch, "parse_file", lambda p, f: [Page(number=1, text="serviced annually")])
+    repo, doc, engine, session = await _repo_with_one_doc("m.pdf")
+    embedder = AsyncMock()
+    embedder.embed = AsyncMock(return_value=[[0.1, 0.2]])
+    embedder.embed_sparse = AsyncMock(return_value=[{"indices": [1], "values": [0.5]}])
+    qdrant = AsyncMock(); qdrant.upsert = AsyncMock(); qdrant.delete_by_doc = AsyncMock()
+    settings = Settings(hybrid_enabled=True)
+    await ingest_document(doc.id, "/dev/null", "m.pdf", repo, embedder, qdrant, settings)
+    pts = qdrant.upsert.call_args_list[0].kwargs["points"]
+    assert pts[0]["sparse"] == {"indices": [1], "values": [0.5]}
+    await session.close(); await engine.dispose()
+

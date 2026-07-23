@@ -54,3 +54,33 @@ async def test_rerank_caps_to_rerank_top_k():
     r = Retriever(FakeEmb(), FakeQ(), settings)
     sources = await r.retrieve("q")
     assert len(sources) == 2
+
+
+async def test_hybrid_search_issues_dense_and_sparse():
+    from app.rag.retriever import Retriever
+    from app.config import Settings
+    calls = {}
+
+    class FakeEmb:
+        async def embed(self, texts): return [[0.1] for _ in texts]
+        async def embed_sparse(self, texts):
+            calls["sparse_text"] = texts
+            return [{"indices": [0], "values": [1.0]} for _ in texts]
+
+    class FakeQ:
+        async def query_points(self, dense, sparse, top_k, filter=None):
+            calls["dense"] = dense
+            calls["sparse_vec"] = sparse
+            return [{"id": "p1", "text": "t", "doc_id": 1, "filename": "m.pdf", "page": 1, "score": 0.9}]
+
+        async def search(self, vector, top_k):
+            raise AssertionError("dense-only search should not run when hybrid enabled")
+
+    settings = Settings(hybrid_enabled=True, retrieval_top_k=5)
+    r = Retriever(FakeEmb(), FakeQ(), settings)
+    sources = await r.retrieve("how to calibrate")
+    assert calls["dense"] == [0.1]
+    assert calls["sparse_text"] == ["how to calibrate"]
+    assert sources[0].chunk_id == "p1"
+
+
