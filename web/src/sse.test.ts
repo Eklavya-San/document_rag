@@ -101,4 +101,13 @@ describe("streamChat", () => {
     await streamChat("q", null, (e) => events.push(e), () => {});
     expect(events.map((e) => e.type)).toEqual(["token", "done"]);
   });
+
+  it("calls onError when fetch rejects before a response", async () => {
+    (globalThis as any).fetch = vi.fn().mockRejectedValue(new Error("network down"));
+    const onErr = vi.fn();
+    await streamChat("q", null, () => {}, onErr);
+    expect(onErr).toHaveBeenCalled();
+    expect(onErr.mock.calls[0][0].message).toBe("network down");
+  });
 });
+

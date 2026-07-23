@@ -107,11 +107,24 @@ describe("Chat", () => {
       onEvent({ type: "session", session_id: 9 });
       onEvent({ type: "token", content: "**bold**" });
       onEvent({ type: "done" });
+      await new Promise((resolve) => setTimeout(resolve, 10));
     });
     const user = userEvent.setup();
     render(<Chat />);
     await user.type(screen.getByPlaceholderText("Ask about the manuals…"), "q");
     await user.click(screen.getByRole("button", { name: "Send" }));
     expect(await screen.findByText("bold")).toBeInTheDocument();
+  });
+
+  it("renders an error message when the stream errors", async () => {
+    vi.mocked(streamChat).mockImplementationOnce(async (_q, _id, _onEvent, onErr: (e: Error) => void) => {
+      onErr(new Error("boom"));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    const user = userEvent.setup();
+    render(<Chat />);
+    await user.type(screen.getByPlaceholderText("Ask about the manuals…"), "q");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByText(/Error: boom/)).toBeInTheDocument();
   });
 });

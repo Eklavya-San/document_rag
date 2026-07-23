@@ -101,4 +101,19 @@ describe("Documents", () => {
     await user.keyboard("{Enter}");
     expect(spy).toHaveBeenCalled();
   });
+
+  it("handles a drop event and tolerates an upload error", async () => {
+    (uploadDocument as any).mockRejectedValueOnce(new Error("boom"));
+    const { container } = render(<Documents />);
+    await screen.findByText("m.pdf");
+    const zone = container.querySelector(".dropzone") as HTMLElement;
+    const dropEvent = new Event("drop", { bubbles: true });
+    Object.defineProperty(dropEvent, "dataTransfer", {
+      value: { files: [new File(["x"], "dropped.pdf", { type: "application/pdf" })] },
+    });
+    zone.dispatchEvent(dropEvent);
+    expect(screen.getByText("Document Title")).toBeInTheDocument();
+  });
+
 });
+
