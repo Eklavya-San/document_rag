@@ -6,11 +6,12 @@
 [![React](https://img.shields.io/badge/React-18.3.1-61DAFB.svg?style=flat&logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5.3-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org/)
 [![CI Workflow](https://github.com/Eklavya-San/document_rag/actions/workflows/ci.yml/badge.svg)](https://github.com/Eklavya-San/document_rag/actions/workflows/ci.yml)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1.svg?style=flat&logo=postgresql)](https://www.postgresql.org/)
 [![Qdrant](https://img.shields.io/badge/Qdrant-VectorDB-red.svg?style=flat)](https://qdrant.tech/)
 [![Ollama](https://img.shields.io/badge/Ollama-LLM-black.svg?style=flat)](https://ollama.ai/)
 [![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED.svg?style=flat&logo=docker)](https://www.docker.com/)
 
-**RAG Studio** is a production-grade Retrieval-Augmented Generation (RAG) platform built for intelligent document search, real-time chunk streaming, and citation inspection. Powered by a **FastAPI** backend, **Qdrant** vector database, local **Ollama** LLMs, and an executive **Vite + React** single-page application.
+**RAG Studio** is a production-grade Retrieval-Augmented Generation (RAG) platform built for intelligent document search, real-time chunk streaming, and citation inspection. Powered by a **FastAPI** backend, **PostgreSQL** relational store, **Qdrant** vector database, local **Ollama** LLMs, and an executive **Vite + React** single-page application.
 
 ---
 
@@ -19,7 +20,7 @@
 - 🎯 **Interactive Source Citation Inspector**: Click inline citation badges (`[1]`, `[2]`) in chat responses to open a right side drawer displaying exact text chunks, vector similarity match percentages (e.g. `87.7% Match`), and chunk IDs.
 - 🌓 **Dual Light/Dark Theme System**: Executive SaaS styling with deep midnight dark mode and clean slate light mode, built with zero-dependency CSS variables.
 - 💬 **Streaming SSE Responses**: Real-time server-sent event (SSE) streaming with smooth markdown rendering, code block syntax highlighting, and 1-click snippet copy buttons.
-- 📁 **Drag-and-Drop Document Ingestion**: Ingest `.pdf`, `.txt`, `.md`, and `.json` files with automatic chunking, progress tracking, and index status indicators (`Indexed`, `Processing`, `Error`).
+- 📁 **Drag-and-Drop Document Ingestion**: Ingest `.pdf`, `.docx`, `.html`, and `.htm` files with automatic chunking, progress tracking, and index status indicators (`Indexed`, `Processing`, `Error`).
 - ⚡ **System Health Monitoring**: Live status pills displaying real-time connectivity states for the Qdrant vector database and Ollama LLM service.
 - 📱 **Responsive 3-Zone Workspace Layout**: Collapsible navigation sidebar, centered conversational canvas, and collapsible citation inspection drawer with mobile responsive breakpoints.
 
@@ -29,10 +30,11 @@
 
 ```mermaid
 graph TD
-    User([User Interface]) -->|Vite + React App| Web[Frontend Client - Port 5173]
+    User([User Interface]) -->|Vite + React App| Web[Frontend Client - Port 8080 / 5173]
     Web -->|HTTP / SSE Stream| API[FastAPI Backend - Port 8000]
     
-    subgraph Storage & Retrieval
+    subgraph Storage & Persistence
+        API -->|Document & Chat Persistence| Postgres[(PostgreSQL DB - Port 5432)]
         API -->|Vector Search & Ingestion| Qdrant[(Qdrant Vector DB - Port 6333)]
         API -->|Embeddings & Chat Generation| Ollama[(Ollama LLM Engine - Port 11434)]
     end
@@ -53,8 +55,9 @@ graph TD
 | :--- | :--- | :--- |
 | **Frontend** | React 18, TypeScript, Vite, Vanilla CSS | Single-page SaaS interface with custom SVG icons |
 | **Backend** | Python 3.11, FastAPI, Uvicorn | Async REST API & Server-Sent Events (SSE) streaming |
-| **Vector DB** | Qdrant | Fast similarity search & chunk payload storage |
-| **LLM & Embeddings** | Ollama | Local LLM inference (`llama3`) and vector embeddings (`nomic-embed-text`) |
+| **Relational DB** | PostgreSQL 16 | Document metadata, chat sessions, messages |
+| **Vector DB** | Qdrant 1.9.1 | Fast similarity search & chunk payload storage |
+| **LLM & Embeddings** | Ollama | Local LLM inference (`qwen2.5:32b`) and vector embeddings (`bge-m3`) |
 | **Testing** | Vitest, React Testing Library, Pytest | Unit and integration test coverage |
 | **Containerization** | Docker, Docker Compose | Orchestration for all services |
 
@@ -70,14 +73,21 @@ graph TD
 
 ### Option A: Quick Start with Docker Compose (Recommended)
 
-Run all services (API, Web UI, Qdrant, and Ollama) with a single command:
+Run all services (API, Web UI, Postgres, Qdrant, and Ollama) with a single command:
 
 ```bash
 docker compose up --build
 ```
 
+Pull the required Ollama models once (first run only):
+
+```bash
+docker compose exec ollama ollama pull qwen2.5:32b
+docker compose exec ollama ollama pull bge-m3
+```
+
 Access the applications:
-- 🌐 **Web UI Workspace**: [http://localhost:5173](http://localhost:5173)
+- 🌐 **Web UI Workspace**: [http://localhost:8080](http://localhost:8080)
 - 🔌 **FastAPI Docs (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
 - 📊 **Qdrant Dashboard**: [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
 
@@ -85,9 +95,9 @@ Access the applications:
 
 ### Option B: Local Development Setup
 
-#### 1. Start Qdrant Vector DB
+#### 1. Start Postgres & Qdrant Vector DB
 ```bash
-docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant
+docker compose up -d postgres qdrant
 ```
 
 #### 2. Backend Setup (`api/`)
@@ -95,7 +105,7 @@ docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant
 cd api
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-dev.txt
 
 # Run FastAPI server
 uvicorn app.main:app --reload --port 8000
@@ -106,7 +116,7 @@ uvicorn app.main:app --reload --port 8000
 cd web
 npm install
 
-# Start Vite dev server
+# Start Vite dev server (runs on port 5173 and proxies API requests to :8000)
 npm run dev
 ```
 
@@ -126,6 +136,12 @@ cd web
 npm run build
 ```
 
+### Backend Unit Tests (Pytest)
+```bash
+cd api
+pytest
+```
+
 ---
 
 ## 📁 Repository Directory Structure
@@ -138,6 +154,7 @@ rag_1/
 │   │   ├── config.py      # App settings & environment variables
 │   │   ├── rag/           # RAG retrieval & streaming logic
 │   │   ├── qdrant/        # Qdrant vector store integrations
+│   │   ├── db/            # SQLAlchemy models, migrations, & repositories
 │   │   ├── ingestion/     # Document parsing & chunking pipeline
 │   │   └── routers/       # Endpoint routes
 │   ├── Dockerfile
