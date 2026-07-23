@@ -276,5 +276,31 @@ def test_feedback_endpoint_persists_rating(app_with_fakes):
     assert fr.status_code == 204
 
 
+def test_no_context_branch_persists_assistant_message(app_with_fakes):
+    app, factory = app_with_fakes
+    app.state.ollama = FakeOllama()
+    app.state.qdrant = NoContextQdrant()
+    client = _client(app)
+    r = client.post("/chat", json={"question": "something unrelated"})
+    session_id = _parse_sse(r.text)[0]["session_id"]
+    hist = client.get(f"/chat/sessions/{session_id}/messages").json()
+    roles = [m["role"] for m in hist]
+    assert roles == ["user", "assistant"]
+    assert hist[1]["content"] == "I couldn't find this in the manuals."
+
+
+def test_multi_turn_session_carries_history(app_with_fakes):
+    app, factory = app_with_fakes
+    app.state.ollama = FakeOllama()
+    app.state.qdrant = FakeQdrant()
+    client = _client(app)
+    r1 = client.post("/chat", json={"question": "turn one"})
+    sid = _parse_sse(r1.text)[0]["session_id"]
+    client.post("/chat", json={"question": "turn two", "session_id": sid})
+    hist = client.get(f"/chat/sessions/{sid}/messages").json()
+    assert [m["role"] for m in hist] == ["user", "assistant", "user", "assistant"]
+
+
+
 
 
