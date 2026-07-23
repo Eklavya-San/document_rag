@@ -142,3 +142,18 @@ async def test_hybrid_ingest_stores_sparse(monkeypatch):
     assert pts[0]["sparse"] == {"indices": [1], "values": [0.5]}
     await session.close(); await engine.dispose()
 
+
+async def test_dedup_skips_identical_chunks(monkeypatch):
+    import app.ingestion.orchestrator as orch
+    from app.ingestion.parsers import Page
+    monkeypatch.setattr(orch, "parse_file", lambda p, f: [Page(number=1, text="dup text"), Page(number=2, text="dup text")])
+    repo, doc, engine, session = await _repo_with_one_doc("m.pdf")
+    embedder = AsyncMock(); embedder.embed = AsyncMock(return_value=[[0.1]])
+    qdrant = AsyncMock(); qdrant.upsert = AsyncMock(); qdrant.delete_by_doc = AsyncMock()
+    settings = Settings(dedup_enabled=True)
+    await ingest_document(doc.id, "/dev/null", "m.pdf", repo, embedder, qdrant, settings)
+    pts = [p for c in qdrant.upsert.call_args_list for p in c.kwargs["points"]]
+    assert len(pts) == 1
+    await session.close(); await engine.dispose()
+
+

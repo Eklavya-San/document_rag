@@ -5,9 +5,15 @@ from app.db.repositories import DocumentRepository
 from app.ollama.client import OllamaClient
 from app.qdrant.client import QdrantStore
 from app.ingestion.parsers import parse_file
+import hashlib
 from app.ingestion.chunker import chunk_pages
 
 EMBED_BATCH = 32
+
+
+def _chunk_hash(text: str) -> str:
+    return hashlib.sha256(" ".join(text.split()).encode("utf-8")).hexdigest()
+
 
 
 async def ingest_document(
@@ -30,7 +36,19 @@ async def ingest_document(
             overlap_chars = settings.chunk_overlap_tokens * 4
             chunks = chunk_pages(pages, size_chars, overlap_chars)
 
+        if settings.dedup_enabled:
+            seen = set()
+            unique = []
+            for c in chunks:
+                h = _chunk_hash(c.text)
+                if h in seen:
+                    continue
+                seen.add(h)
+                unique.append(c)
+            chunks = unique
+
         if not chunks:
+
             await repo.set_status(doc_id, "failed", parser_used=parser_used, error="No text extracted")
             return
 

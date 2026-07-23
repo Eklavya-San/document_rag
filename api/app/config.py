@@ -18,8 +18,10 @@ class Settings(BaseSettings):
     query_expansion_enabled: bool = False
     hyde_enabled: bool = False
     num_subqueries: int = 3
+    dedup_enabled: bool = False
     token_accurate_chunking: bool = False
     chunk_size_tokens: int = 512
+
     chunk_overlap_tokens: int = 50
     retrieval_top_k: int = 5
     rerank_enabled: bool = False
