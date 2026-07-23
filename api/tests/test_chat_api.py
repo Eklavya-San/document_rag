@@ -217,3 +217,20 @@ def test_session_messages_pagination(app_with_fakes):
         client.post("/chat", json={"question": q, "session_id": sid})
     msgs = client.get(f"/chat/sessions/{sid}/messages?limit=2&offset=2").json()
     assert len(msgs) == 2  # 4 messages total, skip first 2
+
+
+def test_chat_threads_filename_filter(app_with_fakes):
+    app, factory = app_with_fakes
+    seen = {}
+
+    class Q:
+        async def search(self, vector, top_k, query_filter=None):
+            seen["filter"] = query_filter
+            return [{"id":"a","text":"t","doc_id":1,"filename":"m.pdf","page":1,"score":0.9}]
+
+    app.state.ollama = FakeOllama()
+    app.state.qdrant = Q()
+    client = _client(app)
+    client.post("/chat", json={"question": "q", "filename": "m.pdf"})
+    assert seen["filter"] is not None
+

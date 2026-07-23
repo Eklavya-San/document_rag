@@ -18,6 +18,8 @@ router = APIRouter(prefix="/chat", tags=["chat"], dependencies=[Depends(require_
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
     session_id: int | None = None
+    filename: str | None = None
+    doc_ids: list[int] | None = None
 
 
 @router.post("")
@@ -38,16 +40,25 @@ async def chat(req: ChatRequest, request: Request):
                 raise HTTPException(status_code=404, detail="session not found")
             prior_history = await repo.list_messages(req.session_id, settings.chat_history_turns)
 
+    from qdrant_client.http import models as qm
+    must = []
+    if req.filename:
+        must.append(qm.FieldCondition(key="filename", match=qm.MatchValue(value=req.filename)))
+    if req.doc_ids:
+        must.append(qm.FieldCondition(key="doc_id", match=qm.MatchAny(any=req.doc_ids)))
+    query_filter = qm.Filter(must=must) if must else None
+
     # Retrieval BEFORE committing the user message, so a 503 leaves no orphan.
     ollama = request.app.state.ollama
     qdrant = request.app.state.qdrant
     retriever = Retriever(ollama, qdrant, settings, judge=ollama)
 
     try:
-        sources = await retriever.retrieve(req.question)
+        sources = await retriever.retrieve(req.question, query_filter=query_filter)
     except Exception:
         logging.getLogger("uvicorn.error").exception("chat retrieval failed")
         raise HTTPException(status_code=503, detail="AI service unavailable")
+
 
     # Create/fetch session + commit user message in a short-lived session.
     async with request.app.state.session_factory() as session:
