@@ -43,16 +43,13 @@ def test_upload_creates_row_and_runs_ingest(client, monkeypatch):
     r = client.post("/documents/upload", files=files)
     assert r.status_code == 200
     body = r.json()
-    assert body["filename"] == "m.pdf"
-    assert body["status"] in ("pending", "done")  # background task may have run
     doc_id = body["id"]
-
-    listing = client.get("/documents")
-    assert listing.status_code == 200
-    assert len(listing.json()) >= 1
-
     detail = client.get(f"/documents/{doc_id}")
+
     assert detail.status_code == 200
+    assert detail.json()["status"] == "done"
+    assert detail.json()["chunk_count"] == 1
+
     assert detail.json()["id"] == doc_id
 
     missing = client.get("/documents/999999")

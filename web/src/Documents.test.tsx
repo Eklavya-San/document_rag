@@ -70,13 +70,12 @@ describe("Documents", () => {
     // flip to done, advance 2s -> one more poll fires
     status = "done";
     await vi.advanceTimersByTimeAsync(2000);
-    // advance another 2s to confirm no further polls
-    await vi.advanceTimersByTimeAsync(2000);
-    const afterCalls = (listDocuments as any).mock.calls.length;
-    // at least one more call happened after the status flip
-    expect(afterCalls).toBeGreaterThanOrEqual(initialCalls + 1);
+    const callsWhenTerminal = (listDocuments as any).mock.calls.length;
+    await vi.advanceTimersByTimeAsync(6000);
+    expect((listDocuments as any).mock.calls.length).toBe(callsWhenTerminal);
     vi.useRealTimers();
   });
+
 
   it("resets the file input after upload so the same file can be re-uploaded", async () => {
     const user = userEvent.setup();

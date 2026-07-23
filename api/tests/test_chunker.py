@@ -36,7 +36,9 @@ def test_does_not_split_mid_word():
     text = "a" * 95 + " wordtail"
     pages = [Page(number=1, text=text)]
     chunks = chunk_pages(pages, size_chars=100, overlap_chars=0)
-    assert all(not c.text.startswith("wordtail") or c.text == "wordtail" or " " in c.text for c in chunks)
+    assert not chunks[0].text.endswith("word")
+    assert chunks[0].text.endswith("a") or chunks[0].text.endswith("wordtail")
+
 
 
 def test_chunk_carries_section():
