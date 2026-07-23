@@ -10,9 +10,9 @@ services:
   api:
     build: ./api
     environment:
-      - POSTGRES_DSN=postgresql+asyncpg://${POSTGRES_USER:-rag}:${POSTGRES_PASSWORD:-rag}@postgres:5432/${POSTGRES_DB:-rag}
-      - QDRANT_URL=http://qdrant:6333
-      - OLLAMA_BASE_URL=http://localhost:11434
+      - POSTGRES_DSN=${POSTGRES_DSN:-postgresql+asyncpg://rag:rag@postgres:5432/rag}
+      - QDRANT_URL=${QDRANT_URL:-http://qdrant:6333}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://localhost:11434}
       - DATA_DIR=/data/manuals
       - API_KEY=${API_KEY:-}
     volumes:
