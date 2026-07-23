@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.config import get_settings
+from app.rate import limiter
 from app.auth import require_api_key
 from app.db.base import get_session
 from app.db.repositories import DocumentRepository
@@ -12,7 +14,9 @@ router = APIRouter(prefix="/documents", tags=["documents"], dependencies=[Depend
 
 
 @router.post("/upload")
+@limiter.limit(lambda: get_settings().upload_rate_limit)
 async def upload_document(
+
     request: Request,
     background: BackgroundTasks,
     file: UploadFile = File(...),

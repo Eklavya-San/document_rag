@@ -5,6 +5,9 @@ from app.config import get_settings
 from app.db.base import Base, async_engine, session_factory, _apply_startup_indexes
 from app.ollama.client import OllamaClient
 from app.qdrant.client import QdrantStore
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
+from app.rate import limiter
 from app.routers import health, documents, chat
 
 
@@ -34,11 +37,14 @@ def create_app() -> FastAPI:
     app.state.settings = settings
     app.state.ollama = OllamaClient(settings)
     app.state.session_factory = session_factory
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     app.include_router(health.router)
     app.include_router(documents.router)
     app.include_router(chat.router)
     return app
+
 
 
 app = create_app()

@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     # Chat input length bound
     max_question_chars: int = 4000
 
+    # Rate limits
+    chat_rate_limit: str = "60/minute"
+    upload_rate_limit: str = "20/minute"
+
     # Upload ceiling enforced server-side (bytes)
     max_upload_bytes: int = 200 * 1024 * 1024
 

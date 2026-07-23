@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.config import get_settings
+from app.rate import limiter
 from app.auth import require_api_key
 from app.db.base import get_session
 from app.db.repositories import ChatRepository
@@ -19,7 +21,9 @@ class ChatRequest(BaseModel):
 
 
 @router.post("")
+@limiter.limit(lambda: get_settings().chat_rate_limit)
 async def chat(req: ChatRequest, request: Request):
+
     settings = request.app.state.settings
     if len(req.question) > settings.max_question_chars:
         raise HTTPException(status_code=422, detail="question too long")
