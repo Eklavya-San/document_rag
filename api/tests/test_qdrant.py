@@ -67,7 +67,8 @@ async def test_search_maps_hits_to_dicts():
     _, kwargs = mock_client.search.call_args
     assert kwargs["collection_name"] == "manuals"
     assert kwargs["limit"] == 5
-    assert results == [{"id": "p1", "text": "calibrate", "doc_id": 1, "filename": "m.pdf", "page": 3, "score": 0.91}]
+    assert results == [{"id": "p1", "text": "calibrate", "doc_id": 1, "filename": "m.pdf", "page": 3, "section": "", "score": 0.91}]
+
 
 
 async def test_search_returns_point_id():
