@@ -38,3 +38,11 @@ class ChatMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     session: Mapped["ChatSession"] = relationship(back_populates="messages")
+
+
+class EvalRun(Base):
+    __tablename__ = "eval_runs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    summary: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+

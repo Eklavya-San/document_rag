@@ -22,7 +22,7 @@ def load_qa(path: str) -> list[QaItem]:
 Pipeline = Callable[[str], Awaitable[tuple[str, list[dict]]]]
 
 
-async def run_eval(pipeline: Pipeline, qa: list[QaItem], judge=None) -> list[dict]:
+async def run_eval(pipeline: Pipeline, qa: list[QaItem], judge=None, score_fn=None) -> list[dict]:
     results = []
     for item in qa:
         answer, sources = await pipeline(item.question)
@@ -36,4 +36,7 @@ async def run_eval(pipeline: Pipeline, qa: list[QaItem], judge=None) -> list[dic
                 "tags": item.tags,
             }
         )
+    if judge is not None and score_fn is not None:
+        results = await score_fn(results, judge)
     return results
+
