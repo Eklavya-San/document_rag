@@ -52,7 +52,8 @@ async def test_ingest_happy_path_marks_done_and_upserts():
         assert all_points[0]["payload"]["page"] == 1
         assert any("serviced" in p["payload"]["text"] for p in all_points)
         assert all(p["payload"]["filename"] == "m.pdf" for p in all_points)
-        assert all(p["payload"]["language"] == "auto" for p in all_points)
+        assert all(p["payload"]["language"] in ("en", "auto") for p in all_points)
+
         assert len(all_points) == fetched.chunk_count
         await session.close()
         await engine.dispose()
@@ -155,5 +156,19 @@ async def test_dedup_skips_identical_chunks(monkeypatch):
     pts = [p for c in qdrant.upsert.call_args_list for p in c.kwargs["points"]]
     assert len(pts) == 1
     await session.close(); await engine.dispose()
+
+
+async def test_language_detected_into_payload(monkeypatch):
+    import app.ingestion.orchestrator as orch
+    from app.ingestion.parsers import Page
+    monkeypatch.setattr(orch, "parse_file", lambda p, f: [Page(number=1, text="The sensor must be calibrated annually.")])
+    repo, doc, engine, session = await _repo_with_one_doc("m.pdf")
+    embedder = AsyncMock(); embedder.embed = AsyncMock(return_value=[[0.1]])
+    qdrant = AsyncMock(); qdrant.upsert = AsyncMock(); qdrant.delete_by_doc = AsyncMock()
+    await ingest_document(doc.id, "/dev/null", "m.pdf", repo, embedder, qdrant, Settings())
+    pts = [p for c in qdrant.upsert.call_args_list for p in c.kwargs["points"]]
+    assert pts[0]["payload"]["language"] == "en"
+    await session.close(); await engine.dispose()
+
 
 

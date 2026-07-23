@@ -15,6 +15,16 @@ def _chunk_hash(text: str) -> str:
     return hashlib.sha256(" ".join(text.split()).encode("utf-8")).hexdigest()
 
 
+def _detect_language(text: str) -> str:
+    try:
+        from langdetect import detect, DetectorFactory
+        DetectorFactory.seed = 0
+        return detect(text)
+    except Exception:
+        return "auto"
+
+
+
 
 async def ingest_document(
     doc_id: int,
@@ -68,7 +78,8 @@ async def ingest_document(
                         "page": chunk.page,
                         "section": getattr(chunk, "section", ""),
                         "text": chunk.text,
-                        "language": "auto",
+                        "language": _detect_language(chunk.text),
+
 
                     },
                 }
