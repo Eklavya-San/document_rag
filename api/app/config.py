@@ -18,11 +18,15 @@ class Settings(BaseSettings):
     query_expansion_enabled: bool = False
     hyde_enabled: bool = False
     num_subqueries: int = 3
+    tiered_models_enabled: bool = False
+    ollama_small_llm_model: str = "qwen2.5:3b"
+    small_model_max_words: int = 8
     embed_cache_enabled: bool = False
     embed_cache_size: int = 1024
     context_dedup_enabled: bool = False
     dedup_enabled: bool = False
     token_accurate_chunking: bool = False
+
 
 
     chunk_size_tokens: int = 512

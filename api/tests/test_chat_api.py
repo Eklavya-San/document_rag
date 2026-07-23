@@ -11,7 +11,8 @@ class FakeOllama:
     async def embed(self, texts):
         return [[0.1, 0.2] for _ in texts]
 
-    async def chat_stream(self, messages):
+    async def chat_stream(self, messages, model=None):
+
         for p in ["Hel", "lo"]:
             yield p
 
@@ -33,7 +34,8 @@ class DeadOllama:
     async def embed(self, texts):
         raise ConnectionError("ollama down")
 
-    async def chat_stream(self, messages):
+    async def chat_stream(self, messages, model=None):
+
         return
         yield  # make it an async generator
 
@@ -168,7 +170,8 @@ class StreamCrashOllama:
     async def embed(self, texts):
         return [[0.1, 0.2] for _ in texts]
 
-    async def chat_stream(self, messages):
+    async def chat_stream(self, messages, model=None):
+
         yield "Hel"
         raise RuntimeError("boom")
 
@@ -233,4 +236,16 @@ def test_chat_threads_filename_filter(app_with_fakes):
     client = _client(app)
     client.post("/chat", json={"question": "q", "filename": "m.pdf"})
     assert seen["filter"] is not None
+
+
+def test_simple_question_uses_small_model(monkeypatch):
+    from app.rag.router import pick_model
+    from app.config import get_settings
+    monkeypatch.setenv("TIERED_MODELS_ENABLED", "true")
+    monkeypatch.setenv("OLLAMA_SMALL_LLM_MODEL", "qwen2.5:3b")
+    get_settings.cache_clear()
+    s = get_settings()
+    assert pick_model("what is the voltage", s) == "qwen2.5:3b"
+    assert pick_model("explain why the sensor fails and compare the calibration steps", s) == s.ollama_llm_model
+
 

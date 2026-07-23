@@ -89,13 +89,16 @@ async def chat(req: ChatRequest, request: Request):
             yield _sse({"type": "done"})
         return StreamingResponse(no_context(), media_type="text/event-stream")
 
+    from app.rag.router import pick_model
+    model = pick_model(req.question, settings)
     messages = build_messages(req.question, sources, prior_history)
 
     async def generate():
         yield _sse({"type": "session", "session_id": session_id})
         collected: list[str] = []
         try:
-            async for piece in ollama.chat_stream(messages):
+            async for piece in ollama.chat_stream(messages, model=model):
+
                 collected.append(piece)
                 yield _sse({"type": "token", "content": piece})
         except Exception:
