@@ -165,6 +165,31 @@ async def test_query_embed_cache_hits_once_for_same_question():
     assert count["n"] == 1
 
 
+async def test_empty_hits_returns_empty():
+    from app.rag.retriever import Retriever
+    from app.config import Settings
+    class Emb:
+        async def embed(self, texts): return [[0.1]]
+    class Q:
+        async def search(self, vector, top_k, query_filter=None): return []
+    r = Retriever(Emb(), Q(), Settings(no_context_threshold=0.35, retrieval_top_k=5))
+    assert await r.retrieve("q") == []
+
+
+async def test_score_equal_to_threshold_returns_sources():
+    from app.rag.retriever import Retriever
+    from app.config import Settings
+    class Emb:
+        async def embed(self, texts): return [[0.1]]
+    class Q:
+        async def search(self, vector, top_k, query_filter=None):
+            return [{"id":"a","text":"t","doc_id":1,"filename":"m.pdf","page":1,"score":0.35}]
+    r = Retriever(Emb(), Q(), Settings(no_context_threshold=0.35, retrieval_top_k=5))
+    sources = await r.retrieve("q")
+    assert len(sources) == 1
+
+
+
 
 
 
