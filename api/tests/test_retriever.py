@@ -100,4 +100,34 @@ async def test_rerank_reorders_by_llm_score():
     assert [s.chunk_id for s in out] == ["b", "a"]
 
 
+async def test_multi_query_merges_dedup_by_chunk_id():
+    from app.rag.retriever import Retriever
+    from app.config import Settings
+
+    class Judge:
+        async def chat(self, messages):
+            return '["how to calibrate", "calibration steps", "sensor calibration"]'
+
+    class Emb:
+        async def embed(self, texts): return [[0.1] for _ in texts]
+        async def embed_sparse(self, texts): return [{"indices":[0],"values":[1.0]} for _ in texts]
+
+    seen = []
+    class Q:
+        async def search(self, vector, top_k, query_filter=None):
+            seen.append(vector)
+            if len(seen) == 1:
+                return [{"id":"a","text":"a","doc_id":1,"filename":"m.pdf","page":1,"score":0.9}]
+            return [{"id":"a","text":"a","doc_id":1,"filename":"m.pdf","page":1,"score":0.9},
+                    {"id":"b","text":"b","doc_id":1,"filename":"m.pdf","page":2,"score":0.85}]
+
+    settings = Settings(query_expansion_enabled=True, num_subqueries=3, retrieval_top_k=5)
+    r = Retriever(Emb(), Q(), settings, judge=Judge())
+    sources = await r.retrieve("how to calibrate")
+    ids = {s.chunk_id for s in sources}
+    assert ids == {"a", "b"}
+    assert len(seen) == 3
+
+
+
 

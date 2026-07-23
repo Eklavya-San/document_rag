@@ -21,6 +21,24 @@ class Retriever:
         self.judge = judge
 
     async def retrieve(self, question: str, query_filter=None) -> list[Source]:
+        if self.settings.hyde_enabled and self.judge is not None:
+            from app.rag.query_transform import hyde
+            hyde_text = await hyde(question, self.judge)
+            queries = [hyde_text]
+        elif self.settings.query_expansion_enabled and self.judge is not None:
+            from app.rag.query_transform import expand_query
+            queries = await expand_query(question, self.judge, self.settings.num_subqueries)
+        else:
+            queries = [question]
+
+        merged: dict[str, Source] = {}
+        for q in queries:
+            sources = await self._retrieve_one(q, query_filter)
+            for s in sources:
+                merged.setdefault(s.chunk_id, s)
+        return list(merged.values())
+
+    async def _retrieve_one(self, question: str, query_filter=None) -> list[Source]:
         vectors = await self.embedder.embed([question])
         query_vector = vectors[0]
         if self.settings.hybrid_enabled:
@@ -53,6 +71,7 @@ class Retriever:
         elif self.settings.rerank_enabled:
             sources = sources[: self.settings.rerank_top_k]
         return sources
+
 
 
     async def _sparse(self, texts: list[str]) -> list[dict]:

@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     # Retrieval / RAG
     hybrid_enabled: bool = False
     sparse_model: str = "Qdrant/bm42-all-minilm-l6-v2-attentions"
+    query_expansion_enabled: bool = False
+    hyde_enabled: bool = False
+    num_subqueries: int = 3
     chunk_size_tokens: int = 512
     chunk_overlap_tokens: int = 50
     retrieval_top_k: int = 5
@@ -22,6 +25,7 @@ class Settings(BaseSettings):
     rerank_top_k: int = 4
     chat_history_turns: int = 6
     no_context_threshold: float = 0.35
+
 
 
     # Stores
