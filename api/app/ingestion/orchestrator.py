@@ -44,8 +44,10 @@ async def ingest_document(
                         "doc_id": doc_id,
                         "filename": filename,
                         "page": chunk.page,
+                        "section": getattr(chunk, "section", ""),
                         "text": chunk.text,
                         "language": "auto",
+
                     },
                 }
                 for j, (chunk, vector) in enumerate(zip(batch, vectors, strict=True))

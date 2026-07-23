@@ -11,6 +11,8 @@ class Source:
     page: int
     score: float
     chunk_id: str
+    section: str = ""
+
 
 
 class Retriever:
@@ -62,7 +64,9 @@ class Retriever:
                 page=h["page"],
                 score=h["score"],
                 chunk_id=str(h.get("id", "")),
+                section=h.get("section", ""),
             )
+
             for h in hits_sorted
         ]
         if self.settings.rerank_enabled and self.judge is not None:

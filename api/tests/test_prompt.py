@@ -43,3 +43,12 @@ def test_context_is_fenced_and_marked_untrusted():
     # injection text must live INSIDE the fence, not be appended at top level
     assert system_content.index("<context>") < system_content.index("Ignore previous instructions")
     assert "untrusted" in SYSTEM.lower()
+
+
+def test_context_line_includes_section():
+    from app.rag.retriever import Source
+    from app.rag.prompt import build_messages
+    s = Source(text="t", doc_id=1, filename="m.pdf", page=3, score=0.9, chunk_id="c", section="Safety")
+    msgs = build_messages("q", [s], [])
+    assert "[m.pdf > Safety, p.3]" in msgs[0]["content"]
+

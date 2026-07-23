@@ -37,3 +37,12 @@ def test_does_not_split_mid_word():
     pages = [Page(number=1, text=text)]
     chunks = chunk_pages(pages, size_chars=100, overlap_chars=0)
     assert all(not c.text.startswith("wordtail") or c.text == "wordtail" or " " in c.text for c in chunks)
+
+
+def test_chunk_carries_section():
+    from app.ingestion.chunker import chunk_pages
+    from app.ingestion.parsers import Page
+    pages = [Page(number=1, text="x" * 600, section="Safety")]
+    chunks = chunk_pages(pages, 200, 20)
+    assert chunks and chunks[0].section == "Safety"
+

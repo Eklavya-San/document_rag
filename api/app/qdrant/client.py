@@ -63,6 +63,7 @@ class QdrantStore:
                 "doc_id": r.payload.get("doc_id"),
                 "filename": r.payload.get("filename", ""),
                 "page": r.payload.get("page"),
+                "section": r.payload.get("section", ""),
                 "score": r.score,
             }
             for r in results
@@ -88,10 +89,12 @@ class QdrantStore:
                 "doc_id": p.payload.get("doc_id"),
                 "filename": p.payload.get("filename", ""),
                 "page": p.payload.get("page"),
+                "section": p.payload.get("section", ""),
                 "score": p.score,
             }
             for p in points
         ]
+
 
     async def ping(self) -> bool:
         try:

@@ -12,7 +12,10 @@ SYSTEM = (
 
 
 def build_messages(question: str, sources: list[Source], history: list[ChatMessage]) -> list[dict]:
-    context_lines = [f"[{s.filename}, p.{s.page}]: {s.text}" for s in sources]
+    context_lines = [
+        (f"[{s.filename} > {s.section}, p.{s.page}]: {s.text}" if getattr(s, "section", "") else f"[{s.filename}, p.{s.page}]: {s.text}")
+        for s in sources
+    ]
     context_block = "<context>\n" + "\n".join(context_lines) + "\n</context>" if context_lines else ""
     system_content = SYSTEM + ("\n\n" + context_block if context_block else "")
     messages: list[dict] = [{"role": "system", "content": system_content}]

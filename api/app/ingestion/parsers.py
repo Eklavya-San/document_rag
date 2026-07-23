@@ -8,6 +8,7 @@ from pypdf import PdfReader
 class Page:
     number: int
     text: str
+    section: str = ""
 
 
 class OcrRequiredError(Exception):
@@ -53,13 +54,46 @@ def _parse_docx(path: str) -> list[Page]:
             if total > limit:
                 raise UnsupportedFileError("DOCX decompressed size exceeds limit (possible zip bomb)")
         from docx import Document as DocxDocument
-        # python-docx re-opens the file; safe now that we validated sizes
         doc = DocxDocument(path)
-    text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
-    return [Page(number=1, text=text)]
+    paragraphs = [p for p in doc.paragraphs if p.text.strip()]
+    if not paragraphs:
+        return []
+    has_headings = any(p.style and p.style.name and p.style.name.startswith("Heading") for p in paragraphs)
+    if not has_headings:
+        text = "\n".join(p.text for p in paragraphs)
+        return [Page(number=1, text=text, section="")]
+
+    pages: list[Page] = []
+    current_section = ""
+    current_texts = []
+    for p in paragraphs:
+        if p.style and p.style.name and p.style.name.startswith("Heading"):
+            if current_texts:
+                pages.append(Page(number=len(pages) + 1, text="\n".join(current_texts), section=current_section))
+                current_texts = []
+            current_section = p.text.strip()
+        else:
+            current_texts.append(p.text)
+    if current_texts:
+        pages.append(Page(number=len(pages) + 1, text="\n".join(current_texts), section=current_section))
+    return pages or [Page(number=1, text="")]
 
 
 def _parse_html(path: str) -> list[Page]:
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         soup = BeautifulSoup(f.read(), "html.parser")
-    return [Page(number=1, text=soup.get_text(separator=" ", strip=True))]
+    headings = soup.find_all(["h1", "h2", "h3"])
+    if not headings:
+        return [Page(number=1, text=soup.get_text(separator=" ", strip=True), section="")]
+    pages: list[Page] = []
+    section = ""
+    for el in soup.find_all(["h1", "h2", "h3", "p", "li"]):
+        if el.name in ("h1", "h2", "h3"):
+            section = el.get_text(strip=True)
+            continue
+        txt = el.get_text(" ", strip=True)
+        if txt:
+            pages.append(Page(number=len(pages) + 1, text=txt, section=section))
+    if not pages:
+        pages = [Page(number=1, text=soup.get_text(separator=" ", strip=True), section="")]
+    return pages

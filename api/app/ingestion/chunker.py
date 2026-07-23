@@ -6,6 +6,7 @@ from app.ingestion.parsers import Page
 class Chunk:
     text: str
     page: int
+    section: str = ""
 
 
 def chunk_pages(pages: list[Page], size_chars: int, overlap_chars: int) -> list[Chunk]:
@@ -24,7 +25,7 @@ def chunk_pages(pages: list[Page], size_chars: int, overlap_chars: int) -> list[
                     end = space
             piece = text[start:end]
             if piece.strip():
-                chunks.append(Chunk(text=piece, page=page.number))
+                chunks.append(Chunk(text=piece, page=page.number, section=getattr(page, "section", "")))
             if end >= n:
                 break
             next_start = end - overlap_chars
