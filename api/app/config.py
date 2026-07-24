@@ -72,6 +72,12 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
+    # Logging
+    log_level: str = "INFO"
+    log_file_path: str = "logs/app.log"
+    log_rotation: str = "10 MB"
+    log_retention: str = "14 days"
+
 
 @lru_cache
 def get_settings() -> Settings:

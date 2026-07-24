@@ -13,3 +13,4 @@ slowapi==0.1.9
 fastembed==0.2.7
 tiktoken==0.13.0
 langdetect==1.0.9
+loguru==0.7.2
