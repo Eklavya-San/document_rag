@@ -23,6 +23,11 @@ async def get_session() -> AsyncIterator[AsyncSession]:
         yield session
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 def _apply_startup_indexes(conn) -> None:
     """Idempotent indexes and column migrations for existing DBs.
 
@@ -38,7 +43,7 @@ def _apply_startup_indexes(conn) -> None:
         try:
             with conn.begin_nested():
                 conn.execute(text(stmt))
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Migration statement %r skipped or failed: %s", stmt, exc)
 
 

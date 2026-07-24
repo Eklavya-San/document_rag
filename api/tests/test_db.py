@@ -54,3 +54,16 @@ async def test_session_id_index_exists():
         names = [row[1] for row in result]
     await engine.dispose()
     assert any("session_id" in n for n in names)
+
+
+async def test_apply_startup_indexes_idempotent():
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from app.db.base import Base, _apply_startup_indexes
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        # Apply twice to verify idempotency and savepoint exception handling
+        await conn.run_sync(_apply_startup_indexes)
+        await conn.run_sync(_apply_startup_indexes)
+    await engine.dispose()
