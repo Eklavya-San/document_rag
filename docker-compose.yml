@@ -10,12 +10,14 @@ services:
   api:
     build: ./api
     env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       # These override env_file and bake in compose-network hosts with CI-safe
       # defaults (CI has no .env, so the :-defaults apply).
       - POSTGRES_DSN=${POSTGRES_DSN:-postgresql+asyncpg://rag:rag@postgres:5432/rag}
       - QDRANT_URL=${QDRANT_URL:-http://qdrant:6333}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://localhost:11434}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - DATA_DIR=/data/manuals
       - API_KEY=${API_KEY:-}
     volumes:

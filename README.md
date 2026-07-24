@@ -73,17 +73,17 @@ graph TD
 
 ### Option A: Quick Start with Docker Compose (Recommended)
 
-Run all services (API, Web UI, Postgres, Qdrant, and Ollama) with a single command:
+Ensure Ollama is running locally on your host machine, then run services (API, Web UI, Postgres, and Qdrant) with a single command:
 
 ```bash
 docker compose up --build
 ```
 
-Pull the required Ollama models once (first run only):
+Pull the required Ollama models on your host machine (first run only):
 
 ```bash
-docker compose exec ollama ollama pull qwen2.5:32b
-docker compose exec ollama ollama pull bge-m3
+ollama pull qwen2.5:32b
+ollama pull bge-m3
 ```
 
 Access the applications:
